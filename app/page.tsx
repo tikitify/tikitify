@@ -10,6 +10,12 @@ type Trend = {
   hashtags: string;
   image_url: string;
   video_url: string | null;
+  views: number | null;
+  likes: number | null;
+  shares: number | null;
+  comments: number | null;
+  tiktok_url: string | null;
+  author_username: string | null;
 };
 
 export default function Home() {
@@ -23,7 +29,7 @@ export default function Home() {
         .order("position", { ascending: true });
 
       if (error) {
-        console.error("Error loading trends:", error);
+        console.error(error);
         return;
       }
 
@@ -38,6 +44,20 @@ export default function Home() {
     alert("Hashtags copied!");
   }
 
+  function formatNumber(value: number | null) {
+    if (!value) return "-";
+
+    if (value >= 1000000) {
+      return (value / 1000000).toFixed(1) + "M";
+    }
+
+    if (value >= 1000) {
+      return (value / 1000).toFixed(1) + "K";
+    }
+
+    return value.toString();
+  }
+
   return (
     <main className="min-h-screen bg-black text-white p-6">
       <h1 className="text-4xl font-bold mb-2">Tikitify</h1>
@@ -48,19 +68,56 @@ export default function Home() {
         {trends.map((trend) => (
           <div
             key={trend.id}
-            className="min-w-[220px] bg-zinc-900 rounded-xl p-4"
+            className="min-w-[260px] bg-zinc-900 rounded-xl p-4"
           >
-            <img
-              src={trend.image_url}
-              alt={trend.audio}
-              className="aspect-[9/16] w-full object-cover rounded-lg mb-3"
-            />
+            {trend.video_url ? (
+              <video
+                src={trend.video_url}
+                poster={trend.image_url}
+                controls
+                playsInline
+                preload="metadata"
+                className="aspect-[9/16] w-full object-cover rounded-lg mb-3 bg-black"
+              />
+            ) : (
+              <img
+                src={trend.image_url}
+                alt={trend.audio}
+                className="aspect-[9/16] w-full object-cover rounded-lg mb-3"
+              />
+            )}
 
             <h2 className="text-xl font-bold">#{trend.position}</h2>
 
             <p className="text-sm text-gray-300 mt-2">🎵 {trend.audio}</p>
 
-            <p className="text-sm text-gray-500 mt-1">{trend.hashtags}</p>
+            {trend.author_username && (
+              <p className="text-xs text-gray-500 mt-1">
+                @{trend.author_username}
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
+              <div className="bg-zinc-800 rounded p-2">
+                👀 {formatNumber(trend.views)}
+              </div>
+
+              <div className="bg-zinc-800 rounded p-2">
+                ❤️ {formatNumber(trend.likes)}
+              </div>
+
+              <div className="bg-zinc-800 rounded p-2">
+                🔁 {formatNumber(trend.shares)}
+              </div>
+
+              <div className="bg-zinc-800 rounded p-2">
+                💬 {formatNumber(trend.comments)}
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-500 mt-4 break-words">
+              {trend.hashtags || "No hashtags"}
+            </p>
 
             <button
               onClick={() => copyHashtags(trend.hashtags)}
@@ -68,6 +125,17 @@ export default function Home() {
             >
               Copy hashtags
             </button>
+
+            {trend.tiktok_url && (
+              <a
+                href={trend.tiktok_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block mt-2 text-center rounded-lg border border-zinc-700 py-2 text-sm"
+              >
+                Open TikTok
+              </a>
+            )}
           </div>
         ))}
       </div>
