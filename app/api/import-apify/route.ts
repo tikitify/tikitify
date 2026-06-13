@@ -72,9 +72,52 @@ async function importFromLatestApifyRuns() {
     new Map(allItems.map((item) => [String(item.id), item])).values()
   );
 
-  const rows = uniqueItems
-    .filter((item: any) => item.id && item.views && item["video.cover"])
-    .map((item: any) => ({
+const rows = uniqueItems
+  .filter((item: any) => item.id && item.views)
+  .map((item: any) => {
+    const imageUrl =
+      item["video.cover"] ||
+      item["video.thumbnail"] ||
+      item.videoCover ||
+      item.thumbnail ||
+      item.cover ||
+      item.image ||
+      item.video?.cover ||
+      item.video?.thumbnail ||
+      "";
+
+    const videoUrl =
+      item["video.url"] ||
+      item.videoUrl ||
+      item.video?.url ||
+      null;
+
+    return {
+      apify_id: String(item.id),
+      title: item.title || item.text || "",
+      audio:
+        item["song.title"] ||
+        item["music.title"] ||
+        item.musicName ||
+        item.audio ||
+        "Unknown audio",
+      hashtags: extractHashtags(item.title || item.text || ""),
+      image_url: imageUrl,
+      video_url: videoUrl,
+      tiktok_url: item.postPage || item.url || item.webVideoUrl || null,
+      author_username:
+        item["channel.username"] ||
+        item.username ||
+        item.authorUsername ||
+        item.author?.username ||
+        null,
+      views: item.views || 0,
+      likes: item.likes || 0,
+      shares: item.shares || 0,
+      comments: item.comments || 0,
+      score: score(item),
+    };
+  });
       apify_id: String(item.id),
       title: item.title || "",
       audio: item["song.title"] || "Unknown audio",
