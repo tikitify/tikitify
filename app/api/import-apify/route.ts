@@ -70,7 +70,12 @@ async function importFromLatestApifyRuns() {
   }
 
   const uniqueItems = Array.from(
-    new Map(allItems.map((item) => [String(item.id || item.videoId || item.awemeId), item])).values()
+    new Map(
+      allItems.map((item) => [
+        String(item.id || item.videoId || item.awemeId),
+        item,
+      ])
+    ).values()
   );
 
   const rows = uniqueItems
@@ -112,6 +117,7 @@ async function importFromLatestApifyRuns() {
 
       const audio =
         item["song.title"] ||
+        item.song?.title ||
         item["music.title"] ||
         item.musicName ||
         item.audio ||
@@ -120,6 +126,7 @@ async function importFromLatestApifyRuns() {
 
       const authorUsername =
         item["channel.username"] ||
+        item.channel?.username ||
         item.username ||
         item.authorUsername ||
         item.author?.username ||
@@ -135,10 +142,16 @@ async function importFromLatestApifyRuns() {
         apify_id: String(itemId),
         title,
         audio,
-        hashtags: extractHashtags(title),
+        hashtags: Array.isArray(item.hashtags)
+          ? item.hashtags.map((tag: string) => `#${tag}`).join(" ")
+          : extractHashtags(title),
         image_url: imageUrl,
         video_url: videoUrl,
-        tiktok_url: item.postPage || item.url || item.webVideoUrl || item.webVideoUrl || null,
+        tiktok_url:
+          item.postPage ||
+          item.url ||
+          item.webVideoUrl ||
+          null,
         author_username: authorUsername,
         views,
         likes,
