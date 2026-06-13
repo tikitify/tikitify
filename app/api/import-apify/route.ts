@@ -53,6 +53,25 @@ function score(item: any) {
   return views + likes * 5 + comments * 20 + shares * 30;
 }
 
+function isPlayableVideoUrl(url: string | null) {
+  if (!url) return false;
+
+  return (
+    url.startsWith("http") &&
+    (
+      url.includes("tiktokcdn.com") ||
+      url.includes("tiktokcdn-us.com") ||
+      url.includes("tiktokcdn-eu.com") ||
+      url.includes("byteoversea.com")
+    )
+  );
+}
+
+function isValidImageUrl(url: string | null) {
+  if (!url) return false;
+  return url.startsWith("http");
+}
+
 async function importFromLatestApifyRuns() {
   const runsUrl = `https://api.apify.com/v2/actor-runs?token=${process.env.APIFY_TOKEN}&status=SUCCEEDED&limit=20&desc=true`;
 
@@ -175,12 +194,8 @@ async function importFromLatestApifyRuns() {
       return (
         row.apify_id &&
         row.title &&
-        row.audio &&
-        row.audio !== "Unknown audio" &&
-        row.hashtags &&
-        row.image_url &&
-        row.video_url &&
-        row.author_username &&
+        isPlayableVideoUrl(row.video_url) &&
+        isValidImageUrl(row.image_url) &&
         row.views > 0
       );
     });
@@ -189,7 +204,7 @@ async function importFromLatestApifyRuns() {
     return {
       ok: true,
       imported: 0,
-      message: "No valid complete items found",
+      message: "No valid playable videos found",
       checkedItems: allItems.length,
     };
   }
@@ -205,13 +220,10 @@ async function importFromLatestApifyRuns() {
   const { data: topVideos, error: topError } = await supabase
     .from("trend_pool")
     .select("*")
-    .not("audio", "is", null)
-    .not("hashtags", "is", null)
     .not("image_url", "is", null)
     .not("video_url", "is", null)
-    .not("author_username", "is", null)
     .order("score", { ascending: false })
-    .limit(10);
+    .limit(30);
 
   if (topError) {
     throw new Error(topError.message);
@@ -222,19 +234,16 @@ async function importFromLatestApifyRuns() {
   const trends = (topVideos || [])
     .filter((item: any) => {
       return (
-        item.audio &&
-        item.audio !== "Unknown audio" &&
-        item.hashtags &&
-        item.image_url &&
-        item.video_url &&
-        item.author_username
+        isPlayableVideoUrl(item.video_url) &&
+        isValidImageUrl(item.image_url)
       );
     })
+    .slice(0, 10)
     .map((item: any, index: number) => ({
       position: index + 1,
       apify_id: item.apify_id,
-      audio: item.audio,
-      hashtags: item.hashtags,
+      audio: item.audio || "Unknown audio",
+      hashtags: item.hashtags || "",
       image_url: item.image_url,
       video_url: item.video_url,
       tiktok_url: item.tiktok_url,
