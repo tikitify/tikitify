@@ -26,7 +26,7 @@ function score(item: any) {
 }
 
 async function importFromLatestApifyRuns() {
-  const runsUrl = `https://api.apify.com/v2/acts/${APIFY_ACTOR_ID}/runs?token=${process.env.APIFY_TOKEN}&status=SUCCEEDED&limit=20&desc=true`;
+  const runsUrl = `https://api.apify.com/v2/actor-runs?token=${process.env.APIFY_TOKEN}&status=SUCCEEDED&limit=20&desc=true`;
 
   const runsResponse = await fetch(runsUrl);
 
