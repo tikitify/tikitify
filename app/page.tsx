@@ -64,7 +64,7 @@ export default function Home() {
   <img
     src="/logo.png"
     alt="Tikitify"
-    className="h-32 w-auto"
+    className="h-20 w-auto"
   />
 </div>
 
