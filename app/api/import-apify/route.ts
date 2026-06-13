@@ -14,6 +14,20 @@ function extractHashtags(title: string) {
   return matches ? matches.join(" ") : "";
 }
 
+function normalizeHashtags(item: any, title: string) {
+  if (Array.isArray(item.hashtags) && item.hashtags.length > 0) {
+    return item.hashtags
+      .map((tag: string) => {
+        const cleanTag = String(tag).replace("#", "").trim();
+        return cleanTag ? `#${cleanTag}` : "";
+      })
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  return extractHashtags(title);
+}
+
 function getViews(item: any) {
   return item.views || item.playCount || item.play_count || item.stats?.playCount || 0;
 }
@@ -79,11 +93,6 @@ async function importFromLatestApifyRuns() {
   );
 
   const rows = uniqueItems
-    .filter((item: any) => {
-      const itemId = item.id || item.videoId || item.awemeId;
-      const views = getViews(item);
-      return itemId && views;
-    })
     .map((item: any) => {
       const itemId = item.id || item.videoId || item.awemeId;
 
@@ -122,7 +131,7 @@ async function importFromLatestApifyRuns() {
         item.musicName ||
         item.audio ||
         item.musicMeta?.musicName ||
-        "Unknown audio";
+        "";
 
       const authorUsername =
         item["channel.username"] ||
@@ -133,6 +142,14 @@ async function importFromLatestApifyRuns() {
         item.authorMeta?.name ||
         null;
 
+      const tiktokUrl =
+        item.postPage ||
+        item.url ||
+        item.webVideoUrl ||
+        null;
+
+      const hashtags = normalizeHashtags(item, title);
+
       const views = getViews(item);
       const likes = getLikes(item);
       const shares = getShares(item);
@@ -142,16 +159,10 @@ async function importFromLatestApifyRuns() {
         apify_id: String(itemId),
         title,
         audio,
-        hashtags: Array.isArray(item.hashtags)
-          ? item.hashtags.map((tag: string) => `#${tag}`).join(" ")
-          : extractHashtags(title),
+        hashtags,
         image_url: imageUrl,
         video_url: videoUrl,
-        tiktok_url:
-          item.postPage ||
-          item.url ||
-          item.webVideoUrl ||
-          null,
+        tiktok_url: tiktokUrl,
         author_username: authorUsername,
         views,
         likes,
@@ -159,13 +170,26 @@ async function importFromLatestApifyRuns() {
         comments,
         score: score(item),
       };
+    })
+    .filter((row: any) => {
+      return (
+        row.apify_id &&
+        row.title &&
+        row.audio &&
+        row.audio !== "Unknown audio" &&
+        row.hashtags &&
+        row.image_url &&
+        row.video_url &&
+        row.author_username &&
+        row.views > 0
+      );
     });
 
   if (rows.length === 0) {
     return {
       ok: true,
       imported: 0,
-      message: "No valid items found",
+      message: "No valid complete items found",
       checkedItems: allItems.length,
     };
   }
@@ -181,6 +205,11 @@ async function importFromLatestApifyRuns() {
   const { data: topVideos, error: topError } = await supabase
     .from("trend_pool")
     .select("*")
+    .not("audio", "is", null)
+    .not("hashtags", "is", null)
+    .not("image_url", "is", null)
+    .not("video_url", "is", null)
+    .not("author_username", "is", null)
     .order("score", { ascending: false })
     .limit(10);
 
@@ -190,20 +219,31 @@ async function importFromLatestApifyRuns() {
 
   await supabase.from("trends").delete().neq("id", 0);
 
-  const trends = (topVideos || []).map((item: any, index: number) => ({
-    position: index + 1,
-    apify_id: item.apify_id,
-    audio: item.audio,
-    hashtags: item.hashtags,
-    image_url: item.image_url,
-    video_url: item.video_url,
-    tiktok_url: item.tiktok_url,
-    author_username: item.author_username,
-    views: item.views,
-    likes: item.likes,
-    shares: item.shares,
-    comments: item.comments,
-  }));
+  const trends = (topVideos || [])
+    .filter((item: any) => {
+      return (
+        item.audio &&
+        item.audio !== "Unknown audio" &&
+        item.hashtags &&
+        item.image_url &&
+        item.video_url &&
+        item.author_username
+      );
+    })
+    .map((item: any, index: number) => ({
+      position: index + 1,
+      apify_id: item.apify_id,
+      audio: item.audio,
+      hashtags: item.hashtags,
+      image_url: item.image_url,
+      video_url: item.video_url,
+      tiktok_url: item.tiktok_url,
+      author_username: item.author_username,
+      views: item.views,
+      likes: item.likes,
+      shares: item.shares,
+      comments: item.comments,
+    }));
 
   const { error: trendsError } = await supabase.from("trends").insert(trends);
 
