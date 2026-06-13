@@ -18,11 +18,7 @@ type Trend = {
   author_username: string | null;
 };
 
-function TrendVideo({
-  trend,
-}: {
-  trend: Trend;
-}) {
+function TrendVideo({ trend }: { trend: Trend }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [started, setStarted] = useState(false);
 
@@ -32,6 +28,7 @@ function TrendVideo({
     setTimeout(async () => {
       if (videoRef.current) {
         try {
+          videoRef.current.controls = true;
           await videoRef.current.play();
         } catch (error) {
           console.error(error);
@@ -42,41 +39,34 @@ function TrendVideo({
 
   if (!trend.video_url) {
     return (
-      <img
-        src={trend.image_url}
-        alt={trend.audio}
-        className="aspect-[9/12] w-full object-cover"
-      />
+      <div className="aspect-[9/12] w-full bg-black flex items-center justify-center text-zinc-500 text-xs">
+        No video
+      </div>
     );
   }
 
   return (
     <div className="relative aspect-[9/12] w-full bg-black">
+      <video
+        ref={videoRef}
+        src={trend.video_url}
+        playsInline
+        preload="auto"
+        muted={!started}
+        controls={started}
+        className="h-full w-full object-cover bg-black"
+      />
+
       {!started && (
         <button
           onClick={startVideo}
-          className="absolute inset-0 z-10 flex items-center justify-center bg-black"
+          className="absolute inset-0 z-10 flex items-center justify-center bg-black/10"
         >
-          <img
-            src={trend.image_url}
-            alt={trend.audio}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-          <div className="relative z-20 flex h-14 w-14 items-center justify-center rounded-full bg-black/70 text-2xl text-white">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/70 text-2xl text-white">
             ▶
           </div>
         </button>
       )}
-
-      <video
-        ref={videoRef}
-        src={trend.video_url}
-        poster={trend.image_url}
-        controls
-        playsInline
-        preload="metadata"
-        className="h-full w-full object-cover bg-black"
-      />
     </div>
   );
 }
