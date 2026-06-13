@@ -60,9 +60,13 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-black text-white p-6">
-      <h1 className="text-4xl font-bold mb-2">Tikitify</h1>
+      <img
+  src="/logo.png"
+  alt="Tikitify"
+  className="h-28 mb-2"
+/>
 
-      <p className="text-gray-400 mb-8">TikTok Trends Today</p>
+     
 
       <div className="flex gap-4 overflow-x-auto pb-4">
         {trends.map((trend) => (
