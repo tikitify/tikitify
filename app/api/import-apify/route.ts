@@ -38,6 +38,17 @@ async function importFromLatestApifyRuns() {
   const runs = runsJson?.data?.items || [];
 
   let allItems: any[] = [];
+  console.log(
+    "APIFY RUNS FOUND:",
+    runs.map((run: any) => ({
+      id: run.id,
+      status: run.status,
+      actorId: run.actId,
+      datasetId: run.defaultDatasetId,
+      startedAt: run.startedAt,
+      finishedAt: run.finishedAt,
+    }))
+  );
 
   for (const run of runs) {
     const datasetId = run.defaultDatasetId;
@@ -50,7 +61,9 @@ async function importFromLatestApifyRuns() {
 
     if (!datasetResponse.ok) continue;
 
-    const items = await datasetResponse.json();
+       const items = await datasetResponse.json();
+
+    console.log("DATASET ITEMS:", datasetId, items.length, items[0]);
 
     allItems = allItems.concat(items);
   }
