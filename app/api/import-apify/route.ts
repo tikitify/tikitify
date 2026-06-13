@@ -12,11 +12,19 @@ const VIDEO_BUCKET = "trend-videos";
 const VIDEO_FOLDER = "current";
 const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;
 
+type DebugInfo = {
+  uploadAttempts: number;
+  uploaded: number;
+  failedDownloads: number;
+  failedUploads: number;
+  tooLarge: number;
+  deletedOldFiles: number;
+  lastError: string | null;
+};
+
 function extractHashtags(title: string) {
   if (!title) return "";
-
   const matches = title.match(/#[\wáéíóúÁÉÍÓÚñÑüÜ]+/g);
-
   return matches ? matches.join(" ") : "";
 }
 
@@ -78,13 +86,13 @@ function isValidImageUrl(url: string | null) {
   return url.startsWith("http");
 }
 
-async function deleteOldStoredVideos() {
+async function deleteOldStoredVideos(debug: DebugInfo) {
   const { data, error } = await supabase.storage
     .from(VIDEO_BUCKET)
     .list(VIDEO_FOLDER);
 
   if (error) {
-    console.error("Storage list error:", error.message);
+    debug.lastError = `Storage list error: ${error.message}`;
     return;
   }
 
@@ -97,34 +105,47 @@ async function deleteOldStoredVideos() {
     .remove(filesToDelete);
 
   if (removeError) {
-    console.error("Storage remove error:", removeError.message);
+    debug.lastError = `Storage remove error: ${removeError.message}`;
+    return;
   }
+
+  debug.deletedOldFiles = filesToDelete.length;
 }
 
-async function uploadVideoToStorage(apifyId: string, sourceUrl: string) {
+async function uploadVideoToStorage(
+  apifyId: string,
+  sourceUrl: string,
+  debug: DebugInfo
+) {
+  debug.uploadAttempts += 1;
+
   const videoResponse = await fetch(sourceUrl, {
     headers: {
       "user-agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+      referer: "https://www.tiktok.com/",
     },
   });
 
   if (!videoResponse.ok) {
-    console.error("Video download failed:", videoResponse.status, sourceUrl);
+    debug.failedDownloads += 1;
+    debug.lastError = `Video download failed ${videoResponse.status}`;
     return null;
   }
 
   const contentLength = videoResponse.headers.get("content-length");
 
   if (contentLength && Number(contentLength) > MAX_VIDEO_SIZE_BYTES) {
-    console.error("Video too large:", contentLength, sourceUrl);
+    debug.tooLarge += 1;
+    debug.lastError = `Video too large: ${contentLength}`;
     return null;
   }
 
   const arrayBuffer = await videoResponse.arrayBuffer();
 
   if (arrayBuffer.byteLength > MAX_VIDEO_SIZE_BYTES) {
-    console.error("Video too large after download:", arrayBuffer.byteLength, sourceUrl);
+    debug.tooLarge += 1;
+    debug.lastError = `Video too large after download: ${arrayBuffer.byteLength}`;
     return null;
   }
 
@@ -138,7 +159,8 @@ async function uploadVideoToStorage(apifyId: string, sourceUrl: string) {
     });
 
   if (uploadError) {
-    console.error("Storage upload error:", uploadError.message);
+    debug.failedUploads += 1;
+    debug.lastError = `Storage upload error: ${uploadError.message}`;
     return null;
   }
 
@@ -146,10 +168,22 @@ async function uploadVideoToStorage(apifyId: string, sourceUrl: string) {
     .from(VIDEO_BUCKET)
     .getPublicUrl(filePath);
 
+  debug.uploaded += 1;
+
   return data.publicUrl;
 }
 
 async function importFromLatestApifyRuns() {
+  const debug: DebugInfo = {
+    uploadAttempts: 0,
+    uploaded: 0,
+    failedDownloads: 0,
+    failedUploads: 0,
+    tooLarge: 0,
+    deletedOldFiles: 0,
+    lastError: null,
+  };
+
   const runsUrl = `https://api.apify.com/v2/actor-runs?token=${process.env.APIFY_TOKEN}&status=SUCCEEDED&limit=20&desc=true`;
 
   const runsResponse = await fetch(runsUrl);
@@ -286,6 +320,7 @@ async function importFromLatestApifyRuns() {
       top: 0,
       message: "No valid video candidates found",
       checkedItems: allItems.length,
+      debug,
     };
   }
 
@@ -314,7 +349,7 @@ async function importFromLatestApifyRuns() {
     throw new Error(poolError.message);
   }
 
-  await deleteOldStoredVideos();
+  await deleteOldStoredVideos(debug);
 
   const trends = [];
 
@@ -323,7 +358,8 @@ async function importFromLatestApifyRuns() {
 
     const storedVideoUrl = await uploadVideoToStorage(
       row.apify_id,
-      row.original_video_url
+      row.original_video_url,
+      debug
     );
 
     if (!storedVideoUrl) continue;
@@ -361,6 +397,7 @@ async function importFromLatestApifyRuns() {
     imported: rows.length,
     top: trends.length,
     checkedItems: allItems.length,
+    debug,
   };
 }
 
