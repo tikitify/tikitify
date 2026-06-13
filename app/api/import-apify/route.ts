@@ -6,6 +6,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const APIFY_ACTOR_ID = "apidojo~tiktok-scraper";
+
 function extractHashtags(title: string) {
   if (!title) return "";
 
@@ -23,7 +25,115 @@ function score(item: any) {
   );
 }
 
-export async function POST(request: Request) {
+async function importFromLatestApifyRuns() {
+  const runsUrl = `https://api.apify.com/v2/acts/${APIFY_ACTOR_ID}/runs?token=${process.env.APIFY_TOKEN}&status=SUCCEEDED&limit=20&desc=true`;
+
+  const runsResponse = await fetch(runsUrl);
+
+  if (!runsResponse.ok) {
+    throw new Error("Could not fetch Apify runs");
+  }
+
+  const runsJson = await runsResponse.json();
+  const runs = runsJson?.data?.items || [];
+
+  let allItems: any[] = [];
+
+  for (const run of runs) {
+    const datasetId = run.defaultDatasetId;
+
+    if (!datasetId) continue;
+
+    const datasetUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?clean=true&format=json&token=${process.env.APIFY_TOKEN}`;
+
+    const datasetResponse = await fetch(datasetUrl);
+
+    if (!datasetResponse.ok) continue;
+
+    const items = await datasetResponse.json();
+
+    allItems = allItems.concat(items);
+  }
+
+  const uniqueItems = Array.from(
+    new Map(allItems.map((item) => [String(item.id), item])).values()
+  );
+
+  const rows = uniqueItems
+    .filter((item: any) => item.id && item.views && item["video.cover"])
+    .map((item: any) => ({
+      apify_id: String(item.id),
+      title: item.title || "",
+      audio: item["song.title"] || "Unknown audio",
+      hashtags: extractHashtags(item.title || ""),
+      image_url: item["video.cover"] || item["video.thumbnail"] || "",
+      video_url: item["video.url"] || null,
+      tiktok_url: item.postPage || null,
+      author_username: item["channel.username"] || null,
+      views: item.views || 0,
+      likes: item.likes || 0,
+      shares: item.shares || 0,
+      comments: item.comments || 0,
+      score: score(item),
+    }));
+
+  if (rows.length === 0) {
+    return {
+      ok: true,
+      imported: 0,
+      message: "No valid items found",
+    };
+  }
+
+  const { error: poolError } = await supabase
+    .from("trend_pool")
+    .upsert(rows, { onConflict: "apify_id" });
+
+  if (poolError) {
+    throw new Error(poolError.message);
+  }
+
+  const { data: topVideos, error: topError } = await supabase
+    .from("trend_pool")
+    .select("*")
+    .order("score", { ascending: false })
+    .limit(10);
+
+  if (topError) {
+    throw new Error(topError.message);
+  }
+
+  await supabase.from("trends").delete().neq("id", 0);
+
+  const trends = (topVideos || []).map((item: any, index: number) => ({
+    position: index + 1,
+    apify_id: item.apify_id,
+    audio: item.audio,
+    hashtags: item.hashtags,
+    image_url: item.image_url,
+    video_url: item.video_url,
+    tiktok_url: item.tiktok_url,
+    author_username: item.author_username,
+    views: item.views,
+    likes: item.likes,
+    shares: item.shares,
+    comments: item.comments,
+  }));
+
+  const { error: trendsError } = await supabase.from("trends").insert(trends);
+
+  if (trendsError) {
+    throw new Error(trendsError.message);
+  }
+
+  return {
+    ok: true,
+    imported: rows.length,
+    top: trends.length,
+  };
+}
+
+export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const secret = url.searchParams.get("secret");
@@ -32,110 +142,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
+    const result = await importFromLatestApifyRuns();
 
-    const datasetId =
-      body?.resource?.defaultDatasetId ||
-      body?.resource?.datasetId ||
-      body?.defaultDatasetId;
-
-    if (!datasetId) {
-      return NextResponse.json(
-        { error: "No datasetId found", body },
-        { status: 400 }
-      );
-    }
-
-    const apifyUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?clean=true&format=json&token=${process.env.APIFY_TOKEN}`;
-
-    const response = await fetch(apifyUrl);
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: "Error fetching Apify dataset" },
-        { status: 500 }
-      );
-    }
-
-    const items = await response.json();
-
-    const rows = items
-      .filter((item: any) => item.id && item.views && item["video.cover"])
-      .map((item: any) => ({
-        apify_id: String(item.id),
-        title: item.title || "",
-        audio: item["song.title"] || "Unknown audio",
-        hashtags: extractHashtags(item.title || ""),
-        image_url: item["video.cover"] || item["video.thumbnail"] || "",
-        video_url: item["video.url"] || null,
-        tiktok_url: item.postPage || null,
-        author_username: item["channel.username"] || null,
-        views: item.views || 0,
-        likes: item.likes || 0,
-        shares: item.shares || 0,
-        comments: item.comments || 0,
-        score: score(item),
-      }));
-
-    if (rows.length === 0) {
-      return NextResponse.json({
-        ok: true,
-        message: "No valid items found",
-      });
-    }
-
-    const { error: poolError } = await supabase
-      .from("trend_pool")
-      .upsert(rows, { onConflict: "apify_id" });
-
-    if (poolError) {
-      return NextResponse.json({ error: poolError.message }, { status: 500 });
-    }
-
-    const { data: topVideos, error: topError } = await supabase
-      .from("trend_pool")
-      .select("*")
-      .order("score", { ascending: false })
-      .limit(10);
-
-    if (topError) {
-      return NextResponse.json({ error: topError.message }, { status: 500 });
-    }
-
-    await supabase.from("trends").delete().neq("id", 0);
-
-    const trends = (topVideos || []).map((item: any, index: number) => ({
-      position: index + 1,
-      apify_id: item.apify_id,
-      audio: item.audio,
-      hashtags: item.hashtags,
-      image_url: item.image_url,
-      video_url: item.video_url,
-      tiktok_url: item.tiktok_url,
-      author_username: item.author_username,
-      views: item.views,
-      likes: item.likes,
-      shares: item.shares,
-      comments: item.comments,
-    }));
-
-    const { error: trendsError } = await supabase
-      .from("trends")
-      .insert(trends);
-
-    if (trendsError) {
-      return NextResponse.json({ error: trendsError.message }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      ok: true,
-      imported: rows.length,
-      top: trends.length,
-    });
+    return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Unknown error" },
       { status: 500 }
     );
   }
+}
+
+export async function POST(request: Request) {
+  return GET(request);
 }
