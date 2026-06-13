@@ -46,28 +46,26 @@ export default function Home() {
 
   function formatNumber(value: number | null) {
     if (!value) return "-";
-
     if (value >= 1000000) return (value / 1000000).toFixed(1) + "M";
     if (value >= 1000) return (value / 1000).toFixed(1) + "K";
-
     return value.toString();
   }
 
   return (
-    <main className="min-h-screen bg-black text-white px-5 py-5">
-      <div className="flex justify-center mb-5">
+    <main className="min-h-screen bg-black text-white px-4 py-4">
+      <div className="flex justify-center mb-3">
         <img
           src="/logo.png"
           alt="Tikitify"
-          className="h-24 md:h-28 w-auto"
+          className="h-20 md:h-20 w-auto"
         />
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="flex gap-4 overflow-x-auto pb-3">
         {trends.map((trend) => (
           <div
             key={trend.id}
-            className="min-w-[260px] max-w-[260px] bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden"
+            className="min-w-[230px] max-w-[230px] bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden"
           >
             <div className="relative">
               {trend.video_url ? (
@@ -77,50 +75,46 @@ export default function Home() {
                   controls
                   playsInline
                   preload="metadata"
-                  className="aspect-[9/14] w-full object-cover bg-black"
+                  className="aspect-[9/12] w-full object-cover bg-black"
                 />
               ) : (
                 <img
                   src={trend.image_url}
                   alt={trend.audio}
-                  className="aspect-[9/14] w-full object-cover"
+                  className="aspect-[9/12] w-full object-cover"
                 />
               )}
-
-              <div className="absolute top-3 left-3 rounded-xl bg-violet-600 px-3 py-1 text-sm font-bold shadow-lg">
-                {trend.position}
-              </div>
             </div>
 
             <div className="p-3">
-              <h2 className="text-lg font-bold leading-none">
+              <h2 className="text-base font-bold leading-none">
                 #{trend.position}
               </h2>
 
-              <p className="mt-2 text-xs text-zinc-300 truncate">
+              <p className="mt-2 text-[11px] text-zinc-300 truncate">
                 ♪ {trend.audio}
               </p>
 
               {trend.author_username && (
-                <p className="mt-1 text-xs text-zinc-500 truncate">
+                <p className="mt-1 text-[11px] text-zinc-500 truncate">
                   @{trend.author_username}
                 </p>
               )}
 
-              <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-zinc-300">
-                <span>◉ {formatNumber(trend.views)}</span>
-                <span>♥ {formatNumber(trend.likes)}</span>
+              <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-zinc-300">
+                <span>◌ {formatNumber(trend.views)}</span>
+                <span>♡ {formatNumber(trend.likes)}</span>
                 <span>↗ {formatNumber(trend.shares)}</span>
-                <span>○ {formatNumber(trend.comments)}</span>
+                <span>▢ {formatNumber(trend.comments)}</span>
               </div>
 
-              <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-zinc-500">
+              <p className="mt-2 line-clamp-2 text-[11px] leading-snug text-zinc-500">
                 {trend.hashtags || "No hashtags"}
               </p>
 
               <button
                 onClick={() => copyHashtags(trend.hashtags)}
-                className="mt-3 w-full rounded-lg bg-white py-2 text-sm font-semibold text-black"
+                className="mt-3 w-full rounded-lg bg-white py-1.5 text-xs font-semibold text-black"
               >
                 Copy hashtags
               </button>
@@ -130,7 +124,7 @@ export default function Home() {
                   href={trend.tiktok_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-2 block rounded-lg border border-zinc-700 py-2 text-center text-sm text-white"
+                  className="mt-2 block rounded-lg border border-zinc-700 py-1.5 text-center text-xs text-white"
                 >
                   Open TikTok
                 </a>
