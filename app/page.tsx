@@ -40,108 +40,102 @@ export default function Home() {
   }, []);
 
   async function copyHashtags(hashtags: string) {
-    await navigator.clipboard.writeText(hashtags);
+    await navigator.clipboard.writeText(hashtags || "");
     alert("Hashtags copied!");
   }
 
   function formatNumber(value: number | null) {
     if (!value) return "-";
 
-    if (value >= 1000000) {
-      return (value / 1000000).toFixed(1) + "M";
-    }
-
-    if (value >= 1000) {
-      return (value / 1000).toFixed(1) + "K";
-    }
+    if (value >= 1000000) return (value / 1000000).toFixed(1) + "M";
+    if (value >= 1000) return (value / 1000).toFixed(1) + "K";
 
     return value.toString();
   }
 
   return (
-    <main className="min-h-screen bg-black text-white p-6">
-<div className="flex justify-center mb-8">
-  <img
-    src="/logo.png"
-    alt="Tikitify"
-    className="h-20 w-auto"
-  />
-</div>
-
-     
+    <main className="min-h-screen bg-black text-white px-5 py-5">
+      <div className="flex justify-center mb-5">
+        <img
+          src="/logo.png"
+          alt="Tikitify"
+          className="h-24 md:h-28 w-auto"
+        />
+      </div>
 
       <div className="flex gap-4 overflow-x-auto pb-4">
         {trends.map((trend) => (
           <div
             key={trend.id}
-            className="min-w-[260px] bg-zinc-900 rounded-xl p-4"
+            className="min-w-[260px] max-w-[260px] bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden"
           >
-            {trend.video_url ? (
-              <video
-                src={trend.video_url}
-                poster={trend.image_url}
-                controls
-                playsInline
-                preload="metadata"
-                className="aspect-[9/16] w-full object-cover rounded-lg mb-3 bg-black"
-              />
-            ) : (
-              <img
-                src={trend.image_url}
-                alt={trend.audio}
-                className="aspect-[9/16] w-full object-cover rounded-lg mb-3"
-              />
-            )}
+            <div className="relative">
+              {trend.video_url ? (
+                <video
+                  src={trend.video_url}
+                  poster={trend.image_url}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="aspect-[9/14] w-full object-cover bg-black"
+                />
+              ) : (
+                <img
+                  src={trend.image_url}
+                  alt={trend.audio}
+                  className="aspect-[9/14] w-full object-cover"
+                />
+              )}
 
-            <h2 className="text-xl font-bold">#{trend.position}</h2>
-
-            <p className="text-sm text-gray-300 mt-2">🎵 {trend.audio}</p>
-
-            {trend.author_username && (
-              <p className="text-xs text-gray-500 mt-1">
-                @{trend.author_username}
-              </p>
-            )}
-
-            <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
-              <div className="bg-zinc-800 rounded p-2">
-                👀 {formatNumber(trend.views)}
-              </div>
-
-              <div className="bg-zinc-800 rounded p-2">
-                ❤️ {formatNumber(trend.likes)}
-              </div>
-
-              <div className="bg-zinc-800 rounded p-2">
-                🔁 {formatNumber(trend.shares)}
-              </div>
-
-              <div className="bg-zinc-800 rounded p-2">
-                💬 {formatNumber(trend.comments)}
+              <div className="absolute top-3 left-3 rounded-xl bg-violet-600 px-3 py-1 text-sm font-bold shadow-lg">
+                {trend.position}
               </div>
             </div>
 
-            <p className="text-sm text-gray-500 mt-4 break-words">
-              {trend.hashtags || "No hashtags"}
-            </p>
+            <div className="p-3">
+              <h2 className="text-lg font-bold leading-none">
+                #{trend.position}
+              </h2>
 
-            <button
-              onClick={() => copyHashtags(trend.hashtags)}
-              className="mt-4 w-full rounded-lg bg-white text-black py-2 text-sm font-semibold"
-            >
-              Copy hashtags
-            </button>
+              <p className="mt-2 text-xs text-zinc-300 truncate">
+                ♪ {trend.audio}
+              </p>
 
-            {trend.tiktok_url && (
-              <a
-                href={trend.tiktok_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block mt-2 text-center rounded-lg border border-zinc-700 py-2 text-sm"
+              {trend.author_username && (
+                <p className="mt-1 text-xs text-zinc-500 truncate">
+                  @{trend.author_username}
+                </p>
+              )}
+
+              <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-zinc-300">
+                <span>◉ {formatNumber(trend.views)}</span>
+                <span>♥ {formatNumber(trend.likes)}</span>
+                <span>↗ {formatNumber(trend.shares)}</span>
+                <span>○ {formatNumber(trend.comments)}</span>
+              </div>
+
+              <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-zinc-500">
+                {trend.hashtags || "No hashtags"}
+              </p>
+
+              <button
+                onClick={() => copyHashtags(trend.hashtags)}
+                className="mt-3 w-full rounded-lg bg-white py-2 text-sm font-semibold text-black"
               >
-                Open TikTok
-              </a>
-            )}
+                Copy hashtags
+              </button>
+
+              {trend.tiktok_url && (
+                <a
+                  href={trend.tiktok_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 block rounded-lg border border-zinc-700 py-2 text-center text-sm text-white"
+                >
+                  Open TikTok
+                </a>
+              )}
+            </div>
           </div>
         ))}
       </div>
