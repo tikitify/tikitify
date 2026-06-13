@@ -6,8 +6,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const APIFY_ACTOR_ID = "apidojo~tiktok-scraper";
-
 function extractHashtags(title: string) {
   if (!title) return "";
 
@@ -16,13 +14,29 @@ function extractHashtags(title: string) {
   return matches ? matches.join(" ") : "";
 }
 
+function getViews(item: any) {
+  return item.views || item.playCount || item.play_count || item.stats?.playCount || 0;
+}
+
+function getLikes(item: any) {
+  return item.likes || item.diggCount || item.digg_count || item.stats?.diggCount || 0;
+}
+
+function getShares(item: any) {
+  return item.shares || item.shareCount || item.share_count || item.stats?.shareCount || 0;
+}
+
+function getComments(item: any) {
+  return item.comments || item.commentCount || item.comment_count || item.stats?.commentCount || 0;
+}
+
 function score(item: any) {
-  return (
-    (item.views || 0) +
-    (item.likes || 0) * 5 +
-    (item.comments || 0) * 20 +
-    (item.shares || 0) * 30
-  );
+  const views = getViews(item);
+  const likes = getLikes(item);
+  const comments = getComments(item);
+  const shares = getShares(item);
+
+  return views + likes * 5 + comments * 20 + shares * 30;
 }
 
 async function importFromLatestApifyRuns() {
@@ -38,17 +52,6 @@ async function importFromLatestApifyRuns() {
   const runs = runsJson?.data?.items || [];
 
   let allItems: any[] = [];
-  console.log(
-    "APIFY RUNS FOUND:",
-    runs.map((run: any) => ({
-      id: run.id,
-      status: run.status,
-      actorId: run.actId,
-      datasetId: run.defaultDatasetId,
-      startedAt: run.startedAt,
-      finishedAt: run.finishedAt,
-    }))
-  );
 
   for (const run of runs) {
     const datasetId = run.defaultDatasetId;
@@ -61,83 +64,96 @@ async function importFromLatestApifyRuns() {
 
     if (!datasetResponse.ok) continue;
 
-       const items = await datasetResponse.json();
-
-    console.log("DATASET ITEMS:", datasetId, items.length, items[0]);
+    const items = await datasetResponse.json();
 
     allItems = allItems.concat(items);
   }
 
   const uniqueItems = Array.from(
-    new Map(allItems.map((item) => [String(item.id), item])).values()
+    new Map(allItems.map((item) => [String(item.id || item.videoId || item.awemeId), item])).values()
   );
 
-const rows = uniqueItems
-  .filter((item: any) => item.id && item.views)
-  .map((item: any) => {
-    const imageUrl =
-      item["video.cover"] ||
-      item["video.thumbnail"] ||
-      item.videoCover ||
-      item.thumbnail ||
-      item.cover ||
-      item.image ||
-      item.video?.cover ||
-      item.video?.thumbnail ||
-      "";
+  const rows = uniqueItems
+    .filter((item: any) => {
+      const itemId = item.id || item.videoId || item.awemeId;
+      const views = getViews(item);
+      return itemId && views;
+    })
+    .map((item: any) => {
+      const itemId = item.id || item.videoId || item.awemeId;
 
-    const videoUrl =
-      item["video.url"] ||
-      item.videoUrl ||
-      item.video?.url ||
-      null;
+      const title =
+        item.title ||
+        item.text ||
+        item.desc ||
+        item.description ||
+        "";
 
-    return {
-      apify_id: String(item.id),
-      title: item.title || item.text || "",
-      audio:
+      const imageUrl =
+        item["video.cover"] ||
+        item["video.thumbnail"] ||
+        item.videoCover ||
+        item.thumbnail ||
+        item.cover ||
+        item.image ||
+        item.video?.cover ||
+        item.video?.thumbnail ||
+        item.videoMeta?.coverUrl ||
+        item.videoMeta?.thumbnailUrl ||
+        "";
+
+      const videoUrl =
+        item["video.url"] ||
+        item.videoUrl ||
+        item.video?.url ||
+        item.videoMeta?.downloadAddr ||
+        item.videoMeta?.playAddr ||
+        null;
+
+      const audio =
         item["song.title"] ||
         item["music.title"] ||
         item.musicName ||
         item.audio ||
-        "Unknown audio",
-      hashtags: extractHashtags(item.title || item.text || ""),
-      image_url: imageUrl,
-      video_url: videoUrl,
-      tiktok_url: item.postPage || item.url || item.webVideoUrl || null,
-      author_username:
+        item.musicMeta?.musicName ||
+        "Unknown audio";
+
+      const authorUsername =
         item["channel.username"] ||
         item.username ||
         item.authorUsername ||
         item.author?.username ||
-        null,
-      views: item.views || 0,
-      likes: item.likes || 0,
-      shares: item.shares || 0,
-      comments: item.comments || 0,
-      score: score(item),
-    };
-  });
-      apify_id: String(item.id),
-      title: item.title || "",
-      audio: item["song.title"] || "Unknown audio",
-      hashtags: extractHashtags(item.title || ""),
-      image_url: item["video.cover"] || item["video.thumbnail"] || "",
-      video_url: item["video.url"] || null,
-      tiktok_url: item.postPage || null,
-      author_username: item["channel.username"] || null,
-      views: item.views || 0,
-      likes: item.likes || 0,
-      shares: item.shares || 0,
-      comments: item.comments || 0,
-      score: score(item),
-    }));
+        item.authorMeta?.name ||
+        null;
+
+      const views = getViews(item);
+      const likes = getLikes(item);
+      const shares = getShares(item);
+      const comments = getComments(item);
+
+      return {
+        apify_id: String(itemId),
+        title,
+        audio,
+        hashtags: extractHashtags(title),
+        image_url: imageUrl,
+        video_url: videoUrl,
+        tiktok_url: item.postPage || item.url || item.webVideoUrl || item.webVideoUrl || null,
+        author_username: authorUsername,
+        views,
+        likes,
+        shares,
+        comments,
+        score: score(item),
+      };
+    });
 
   if (rows.length === 0) {
     return {
       ok: true,
       imported: 0,
       message: "No valid items found",
+      checkedItems: allItems.length,
     };
   }
 
@@ -186,6 +202,7 @@ const rows = uniqueItems
     ok: true,
     imported: rows.length,
     top: trends.length,
+    checkedItems: allItems.length,
   };
 }
 
