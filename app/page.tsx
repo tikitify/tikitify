@@ -60,11 +60,13 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-black text-white p-6">
-      <img
-  src="/logo.png"
-  alt="Tikitify"
-  className="h-28 mb-2"
-/>
+<div className="flex justify-center mb-8">
+  <img
+    src="/logo.png"
+    alt="Tikitify"
+    className="h-32 w-auto"
+  />
+</div>
 
      
 
