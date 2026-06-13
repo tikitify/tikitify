@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 type Trend = {
@@ -17,6 +17,69 @@ type Trend = {
   tiktok_url: string | null;
   author_username: string | null;
 };
+
+function TrendVideo({
+  trend,
+}: {
+  trend: Trend;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [started, setStarted] = useState(false);
+
+  async function startVideo() {
+    setStarted(true);
+
+    setTimeout(async () => {
+      if (videoRef.current) {
+        try {
+          await videoRef.current.play();
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    }, 50);
+  }
+
+  if (!trend.video_url) {
+    return (
+      <img
+        src={trend.image_url}
+        alt={trend.audio}
+        className="aspect-[9/12] w-full object-cover"
+      />
+    );
+  }
+
+  return (
+    <div className="relative aspect-[9/12] w-full bg-black">
+      {!started && (
+        <button
+          onClick={startVideo}
+          className="absolute inset-0 z-10 flex items-center justify-center bg-black"
+        >
+          <img
+            src={trend.image_url}
+            alt={trend.audio}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div className="relative z-20 flex h-14 w-14 items-center justify-center rounded-full bg-black/70 text-2xl text-white">
+            ▶
+          </div>
+        </button>
+      )}
+
+      <video
+        ref={videoRef}
+        src={trend.video_url}
+        poster={trend.image_url}
+        controls
+        playsInline
+        preload="metadata"
+        className="h-full w-full object-cover bg-black"
+      />
+    </div>
+  );
+}
 
 export default function Home() {
   const [trends, setTrends] = useState<Trend[]>([]);
@@ -67,24 +130,7 @@ export default function Home() {
             key={trend.id}
             className="min-w-[230px] max-w-[230px] bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden"
           >
-            <div className="relative">
-              {trend.video_url ? (
-                <video
-                  src={trend.video_url}
-                  poster={trend.image_url}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  className="aspect-[9/12] w-full object-cover bg-black"
-                />
-              ) : (
-                <img
-                  src={trend.image_url}
-                  alt={trend.audio}
-                  className="aspect-[9/12] w-full object-cover"
-                />
-              )}
-            </div>
+            <TrendVideo trend={trend} />
 
             <div className="p-3">
               <h2 className="text-base font-bold leading-none">
