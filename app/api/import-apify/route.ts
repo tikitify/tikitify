@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,6 +12,8 @@ const supabase = createClient(
 const VIDEO_BUCKET = "trend-videos";
 const VIDEO_FOLDER = "current";
 const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;
+const TARGET_TOP_VIDEOS = 10;
+const MAX_UPLOAD_ATTEMPTS = 80;
 
 type DebugInfo = {
   uploadAttempts: number;
@@ -64,7 +67,7 @@ function score(item: any) {
   const comments = getComments(item);
   const shares = getShares(item);
 
-  return views + likes * 5 + comments * 20 + shares * 30;
+  return views + likes * 3 + comments * 25 + shares * 60;
 }
 
 function isPossibleVideoUrl(url: string | null) {
@@ -184,7 +187,7 @@ async function importFromLatestApifyRuns() {
     lastError: null,
   };
 
-  const runsUrl = `https://api.apify.com/v2/actor-runs?token=${process.env.APIFY_TOKEN}&status=SUCCEEDED&limit=20&desc=true`;
+  const runsUrl = `https://api.apify.com/v2/actor-runs?token=${process.env.APIFY_TOKEN}&status=SUCCEEDED&limit=30&desc=true`;
 
   const runsResponse = await fetch(runsUrl);
 
@@ -261,7 +264,7 @@ async function importFromLatestApifyRuns() {
         item.musicName ||
         item.audio ||
         item.musicMeta?.musicName ||
-        "";
+        "Unknown audio";
 
       const authorUsername =
         item["channel.username"] ||
@@ -291,7 +294,6 @@ async function importFromLatestApifyRuns() {
         audio,
         hashtags,
         image_url: imageUrl,
-        video_url: videoUrl,
         original_video_url: videoUrl,
         tiktok_url: tiktokUrl,
         author_username: authorUsername,
@@ -354,7 +356,8 @@ async function importFromLatestApifyRuns() {
   const trends = [];
 
   for (const row of rows) {
-    if (trends.length >= 10) break;
+    if (trends.length >= TARGET_TOP_VIDEOS) break;
+    if (debug.uploadAttempts >= MAX_UPLOAD_ATTEMPTS) break;
 
     const storedVideoUrl = await uploadVideoToStorage(
       row.apify_id,
