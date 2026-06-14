@@ -2,28 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const VIDEO_BUCKET = "trend-videos";
-const VIDEO_FOLDER = "current";
-const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;
-const TARGET_TOP_VIDEOS = 10;
-const MAX_UPLOAD_ATTEMPTS = 80;
-
-type DebugInfo = {
-  uploadAttempts: number;
-  uploaded: number;
-  failedDownloads: number;
-  failedUploads: number;
-  tooLarge: number;
-  deletedOldFiles: number;
-  lastError: string | null;
-};
 
 function extractHashtags(title: string) {
   if (!title) return "";
@@ -70,123 +53,11 @@ function score(item: any) {
   return views + likes * 3 + comments * 25 + shares * 60;
 }
 
-function isPossibleVideoUrl(url: string | null) {
-  if (!url) return false;
-
-  return (
-    url.startsWith("http") &&
-    (
-      url.includes("tiktokcdn.com") ||
-      url.includes("tiktokcdn-us.com") ||
-      url.includes("tiktokcdn-eu.com") ||
-      url.includes("byteoversea.com")
-    )
-  );
-}
-
-function isValidImageUrl(url: string | null) {
-  if (!url) return false;
-  return url.startsWith("http");
-}
-
-async function deleteOldStoredVideos(debug: DebugInfo) {
-  const { data, error } = await supabase.storage
-    .from(VIDEO_BUCKET)
-    .list(VIDEO_FOLDER);
-
-  if (error) {
-    debug.lastError = `Storage list error: ${error.message}`;
-    return;
-  }
-
-  const filesToDelete = (data || []).map((file) => `${VIDEO_FOLDER}/${file.name}`);
-
-  if (filesToDelete.length === 0) return;
-
-  const { error: removeError } = await supabase.storage
-    .from(VIDEO_BUCKET)
-    .remove(filesToDelete);
-
-  if (removeError) {
-    debug.lastError = `Storage remove error: ${removeError.message}`;
-    return;
-  }
-
-  debug.deletedOldFiles = filesToDelete.length;
-}
-
-async function uploadVideoToStorage(
-  apifyId: string,
-  sourceUrl: string,
-  debug: DebugInfo
-) {
-  debug.uploadAttempts += 1;
-
-  const videoResponse = await fetch(sourceUrl, {
-    headers: {
-      "user-agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-      referer: "https://www.tiktok.com/",
-    },
-  });
-
-  if (!videoResponse.ok) {
-    debug.failedDownloads += 1;
-    debug.lastError = `Video download failed ${videoResponse.status}`;
-    return null;
-  }
-
-  const contentLength = videoResponse.headers.get("content-length");
-
-  if (contentLength && Number(contentLength) > MAX_VIDEO_SIZE_BYTES) {
-    debug.tooLarge += 1;
-    debug.lastError = `Video too large: ${contentLength}`;
-    return null;
-  }
-
-  const arrayBuffer = await videoResponse.arrayBuffer();
-
-  if (arrayBuffer.byteLength > MAX_VIDEO_SIZE_BYTES) {
-    debug.tooLarge += 1;
-    debug.lastError = `Video too large after download: ${arrayBuffer.byteLength}`;
-    return null;
-  }
-
-  const filePath = `${VIDEO_FOLDER}/${apifyId}.mp4`;
-
-  const { error: uploadError } = await supabase.storage
-    .from(VIDEO_BUCKET)
-    .upload(filePath, arrayBuffer, {
-      contentType: "video/mp4",
-      upsert: true,
-    });
-
-  if (uploadError) {
-    debug.failedUploads += 1;
-    debug.lastError = `Storage upload error: ${uploadError.message}`;
-    return null;
-  }
-
-  const { data } = supabase.storage
-    .from(VIDEO_BUCKET)
-    .getPublicUrl(filePath);
-
-  debug.uploaded += 1;
-
-  return data.publicUrl;
+function getTikTokUrl(item: any) {
+  return item.postPage || item.url || item.webVideoUrl || null;
 }
 
 async function importFromLatestApifyRuns() {
-  const debug: DebugInfo = {
-    uploadAttempts: 0,
-    uploaded: 0,
-    failedDownloads: 0,
-    failedUploads: 0,
-    tooLarge: 0,
-    deletedOldFiles: 0,
-    lastError: null,
-  };
-
   const runsUrl = `https://api.apify.com/v2/actor-runs?token=${process.env.APIFY_TOKEN}&status=SUCCEEDED&limit=30&desc=true`;
 
   const runsResponse = await fetch(runsUrl);
@@ -275,12 +146,7 @@ async function importFromLatestApifyRuns() {
         item.authorMeta?.name ||
         null;
 
-      const tiktokUrl =
-        item.postPage ||
-        item.url ||
-        item.webVideoUrl ||
-        null;
-
+      const tiktokUrl = getTikTokUrl(item);
       const hashtags = normalizeHashtags(item, title);
 
       const views = getViews(item);
@@ -294,7 +160,7 @@ async function importFromLatestApifyRuns() {
         audio,
         hashtags,
         image_url: imageUrl,
-        original_video_url: videoUrl,
+        video_url: videoUrl,
         tiktok_url: tiktokUrl,
         author_username: authorUsername,
         views,
@@ -308,8 +174,7 @@ async function importFromLatestApifyRuns() {
       return (
         row.apify_id &&
         row.title &&
-        isPossibleVideoUrl(row.original_video_url) &&
-        isValidImageUrl(row.image_url) &&
+        row.tiktok_url &&
         row.views > 0
       );
     })
@@ -320,79 +185,40 @@ async function importFromLatestApifyRuns() {
       ok: true,
       imported: 0,
       top: 0,
-      message: "No valid video candidates found",
+      message: "No valid TikTok items found",
       checkedItems: allItems.length,
-      debug,
     };
   }
 
   const { error: poolError } = await supabase
     .from("trend_pool")
-    .upsert(
-      rows.map((row: any) => ({
-        apify_id: row.apify_id,
-        title: row.title,
-        audio: row.audio || "Unknown audio",
-        hashtags: row.hashtags || "",
-        image_url: row.image_url,
-        video_url: row.original_video_url,
-        tiktok_url: row.tiktok_url,
-        author_username: row.author_username,
-        views: row.views,
-        likes: row.likes,
-        shares: row.shares,
-        comments: row.comments,
-        score: row.score,
-      })),
-      { onConflict: "apify_id" }
-    );
+    .upsert(rows, { onConflict: "apify_id" });
 
   if (poolError) {
     throw new Error(poolError.message);
   }
 
-  await deleteOldStoredVideos(debug);
-
-  const trends = [];
-
-  for (const row of rows) {
-    if (trends.length >= TARGET_TOP_VIDEOS) break;
-    if (debug.uploadAttempts >= MAX_UPLOAD_ATTEMPTS) break;
-
-    const storedVideoUrl = await uploadVideoToStorage(
-      row.apify_id,
-      row.original_video_url,
-      debug
-    );
-
-    if (!storedVideoUrl) continue;
-
-    trends.push({
-      position: trends.length + 1,
-      apify_id: row.apify_id,
-      audio: row.audio || "Unknown audio",
-      hashtags: row.hashtags || "",
-      image_url: row.image_url,
-      video_url: storedVideoUrl,
-      tiktok_url: row.tiktok_url,
-      author_username: row.author_username,
-      views: row.views,
-      likes: row.likes,
-      shares: row.shares,
-      comments: row.comments,
-    });
-  }
-
   await supabase.from("trends").delete().neq("id", 0);
 
-  if (trends.length > 0) {
-    const { error: trendsError } = await supabase
-      .from("trends")
-      .insert(trends);
+  const trends = rows.slice(0, 10).map((item: any, index: number) => ({
+    position: index + 1,
+    apify_id: item.apify_id,
+    audio: item.audio || "Unknown audio",
+    hashtags: item.hashtags || "",
+    image_url: item.image_url || "",
+    video_url: item.video_url,
+    tiktok_url: item.tiktok_url,
+    author_username: item.author_username,
+    views: item.views,
+    likes: item.likes,
+    shares: item.shares,
+    comments: item.comments,
+  }));
 
-    if (trendsError) {
-      throw new Error(trendsError.message);
-    }
+  const { error: trendsError } = await supabase.from("trends").insert(trends);
+
+  if (trendsError) {
+    throw new Error(trendsError.message);
   }
 
   return {
@@ -400,7 +226,6 @@ async function importFromLatestApifyRuns() {
     imported: rows.length,
     top: trends.length,
     checkedItems: allItems.length,
-    debug,
   };
 }
 
