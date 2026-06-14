@@ -36,7 +36,6 @@ function normalizeHashtags(item: any, title: string) {
             "";
 
           const cleanTag = String(possibleTag).replace("#", "").trim();
-
           return cleanTag ? `#${cleanTag}` : "";
         }
 
@@ -65,8 +64,13 @@ function getComments(item: any) {
   return item.comments || item.commentCount || item.comment_count || item.stats?.commentCount || 0;
 }
 
+function normalizeTikTokUrl(url: string | null) {
+  if (!url) return null;
+  return url.replace("http://", "https://");
+}
+
 function getTikTokUrl(item: any) {
-  return item.postPage || item.url || item.webVideoUrl || null;
+  return normalizeTikTokUrl(item.postPage || item.url || item.webVideoUrl || null);
 }
 
 function getUploadedAt(item: any) {
@@ -116,43 +120,130 @@ function isSpainCandidate(row: any) {
   );
 }
 
-function selectTopVideos(rows: any[], minViews: number) {
+async function getHistoryMap() {
+  const { data, error } = await supabase
+    .from("trend_history")
+    .select("apify_id, market, times_seen");
+
+  if (error) {
+    console.error("History fetch error:", error.message);
+    return new Map<string, number>();
+  }
+
+  const map = new Map<string, number>();
+
+  for (const item of data || []) {
+    map.set(`${item.market}_${item.apify_id}`, item.times_seen || 0);
+  }
+
+  return map;
+}
+
+function applyHistoryPenalty(rows: any[], market: "global" | "spain", historyMap: Map<string, number>) {
+  return rows.map((row) => {
+    const timesSeen = historyMap.get(`${market}_${row.apify_id}`) || 0;
+
+    let penalty = 1;
+
+    if (timesSeen === 1) penalty = 0.85;
+    if (timesSeen === 2) penalty = 0.65;
+    if (timesSeen >= 3) penalty = 0.45;
+    if (timesSeen >= 5) penalty = 0.25;
+
+    return {
+      ...row,
+      market,
+      times_seen: timesSeen,
+      ranking_score: row.views * penalty,
+    };
+  });
+}
+
+function selectTopVideos(rows: any[], minViews: number, market: "global" | "spain", historyMap: Map<string, number>) {
   const validRows = rows.filter((row) => row.views > 0 && row.tiktok_url);
 
   const last48h = validRows.filter((row) => row.age_hours <= 48);
   const last7days = validRows.filter((row) => row.age_hours <= 168);
+  const last30days = validRows.filter((row) => row.age_hours <= 720);
 
-  const sorted48h = [...last48h].sort((a, b) => b.views - a.views);
-  const sorted7d = [...last7days].sort((a, b) => b.views - a.views);
-  const sortedAll = [...validRows].sort((a, b) => b.views - a.views);
+  const sortWithPenalty = (items: any[]) =>
+    applyHistoryPenalty(items, market, historyMap).sort((a, b) => {
+      if (b.ranking_score !== a.ranking_score) {
+        return b.ranking_score - a.ranking_score;
+      }
 
-  if (
-    sorted48h.length >= 10 &&
-    sorted48h[9].views >= minViews
-  ) {
-    return {
-      rows: sorted48h.slice(0, 10),
-      ranking: "last_48h_by_views",
-    };
+      return b.views - a.views;
+    });
+
+  const sorted48h = sortWithPenalty(last48h);
+  const sorted7d = sortWithPenalty(last7days);
+  const sorted30d = sortWithPenalty(last30days);
+  const sortedAll = sortWithPenalty(validRows);
+
+  if (sorted48h.length >= 10 && sorted48h[9].views >= minViews) {
+    return { rows: sorted48h.slice(0, 10), ranking: "last_48h_by_views_with_rotation" };
   }
 
-  if (
-    sorted7d.length >= 10 &&
-    sorted7d[9].views >= minViews
-  ) {
-    return {
-      rows: sorted7d.slice(0, 10),
-      ranking: "last_7d_by_views",
-    };
+  if (sorted7d.length >= 10 && sorted7d[9].views >= minViews) {
+    return { rows: sorted7d.slice(0, 10), ranking: "last_7d_by_views_with_rotation" };
   }
 
-  return {
-    rows: sortedAll.slice(0, 10),
-    ranking: "all_by_views",
-  };
+  if (sorted30d.length >= 10) {
+    return { rows: sorted30d.slice(0, 10), ranking: "last_30d_by_views_with_rotation" };
+  }
+
+  return { rows: sortedAll.slice(0, 10), ranking: "all_by_views_with_rotation" };
+}
+
+async function updateTrendHistory(trends: any[]) {
+  if (trends.length === 0) return;
+
+  const keys = trends.map((trend) => ({
+    apify_id: trend.apify_id,
+    market: trend.market,
+  }));
+
+  const { data: existingHistory, error: historyError } = await supabase
+    .from("trend_history")
+    .select("apify_id, market, first_seen, times_seen");
+
+  if (historyError) {
+    console.error("History read error:", historyError.message);
+    return;
+  }
+
+  const existingMap = new Map<string, any>();
+
+  for (const item of existingHistory || []) {
+    existingMap.set(`${item.market}_${item.apify_id}`, item);
+  }
+
+  const now = new Date().toISOString();
+
+  const historyRows = keys.map((key) => {
+    const existing = existingMap.get(`${key.market}_${key.apify_id}`);
+
+    return {
+      apify_id: key.apify_id,
+      market: key.market,
+      first_seen: existing?.first_seen || now,
+      last_seen: now,
+      times_seen: (existing?.times_seen || 0) + 1,
+    };
+  });
+
+  const { error: upsertError } = await supabase
+    .from("trend_history")
+    .upsert(historyRows, { onConflict: "apify_id,market" });
+
+  if (upsertError) {
+    console.error("History upsert error:", upsertError.message);
+  }
 }
 
 async function importFromLatestApifyRuns() {
+  const historyMap = await getHistoryMap();
+
   const runsUrl = `https://api.apify.com/v2/actor-runs?token=${process.env.APIFY_TOKEN}&status=SUCCEEDED&limit=30&desc=true`;
 
   const runsResponse = await fetch(runsUrl);
@@ -271,11 +362,7 @@ async function importFromLatestApifyRuns() {
       };
     })
     .filter((row: any) => {
-      return (
-        row.apify_id &&
-        row.tiktok_url &&
-        row.views > 0
-      );
+      return row.apify_id && row.tiktok_url && row.views > 0;
     });
 
   if (rows.length === 0) {
@@ -291,8 +378,8 @@ async function importFromLatestApifyRuns() {
 
   const spainRows = rows.filter(isSpainCandidate);
 
-  const globalSelection = selectTopVideos(rows, MIN_GLOBAL_VIEWS);
-  const spainSelection = selectTopVideos(spainRows, MIN_SPAIN_VIEWS);
+  const globalSelection = selectTopVideos(rows, MIN_GLOBAL_VIEWS, "global", historyMap);
+  const spainSelection = selectTopVideos(spainRows, MIN_SPAIN_VIEWS, "spain", historyMap);
 
   const poolRows = [
     ...rows.map((row: any) => ({
@@ -375,6 +462,8 @@ async function importFromLatestApifyRuns() {
     if (trendsError) {
       throw new Error(trendsError.message);
     }
+
+    await updateTrendHistory(trends);
   }
 
   return {
@@ -386,6 +475,7 @@ async function importFromLatestApifyRuns() {
     globalRanking: globalSelection.ranking,
     spainRanking: spainSelection.ranking,
     spainCandidates: spainRows.length,
+    rotation: "enabled",
   };
 }
 
