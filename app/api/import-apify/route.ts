@@ -8,6 +8,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const MIN_GLOBAL_VIEWS = 1000000;
+const MIN_SPAIN_VIEWS = 100000;
+
 function extractHashtags(title: string) {
   if (!title) return "";
   const matches = title.match(/#[\wáéíóúÁÉÍÓÚñÑüÜ]+/g);
@@ -69,8 +72,66 @@ function getAgeHours(uploadedAt: any) {
   return Math.max(diffMs / (1000 * 60 * 60), 1);
 }
 
-function score(item: any) {
-  return getViews(item);
+function isSpainCandidate(row: any) {
+  const text = [
+    row.input_source,
+    row.title,
+    row.hashtags,
+    row.author_username,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    text.includes("españa") ||
+    text.includes("spain") ||
+    text.includes("español") ||
+    text.includes("española") ||
+    text.includes("madrid") ||
+    text.includes("barcelona") ||
+    text.includes("valencia") ||
+    text.includes("sevilla") ||
+    text.includes("humor español") ||
+    text.includes("comedia españa") ||
+    text.includes("futbol españa") ||
+    text.includes("fútbol españa")
+  );
+}
+
+function selectTopVideos(rows: any[], minViews: number) {
+  const validRows = rows.filter((row) => row.views > 0 && row.tiktok_url);
+
+  const last48h = validRows.filter((row) => row.age_hours <= 48);
+  const last7days = validRows.filter((row) => row.age_hours <= 168);
+
+  const sorted48h = [...last48h].sort((a, b) => b.views - a.views);
+  const sorted7d = [...last7days].sort((a, b) => b.views - a.views);
+  const sortedAll = [...validRows].sort((a, b) => b.views - a.views);
+
+  if (
+    sorted48h.length >= 10 &&
+    sorted48h[9].views >= minViews
+  ) {
+    return {
+      rows: sorted48h.slice(0, 10),
+      ranking: "last_48h_by_views",
+    };
+  }
+
+  if (
+    sorted7d.length >= 10 &&
+    sorted7d[9].views >= minViews
+  ) {
+    return {
+      rows: sorted7d.slice(0, 10),
+      ranking: "last_7d_by_views",
+    };
+  }
+
+  return {
+    rows: sortedAll.slice(0, 10),
+    ranking: "all_by_views",
+  };
 }
 
 async function importFromLatestApifyRuns() {
@@ -174,6 +235,7 @@ async function importFromLatestApifyRuns() {
 
       return {
         apify_id: String(itemId),
+        input_source: item.inputSource || item.search || item.query || "",
         title,
         audio,
         hashtags,
@@ -185,7 +247,7 @@ async function importFromLatestApifyRuns() {
         likes,
         shares,
         comments,
-        score: score(item),
+        score: views,
         uploaded_at: uploadedAt,
         age_hours: ageHours,
       };
@@ -202,32 +264,34 @@ async function importFromLatestApifyRuns() {
     return {
       ok: true,
       imported: 0,
-      top: 0,
-      message: "No valid TikTok items found",
+      topGlobal: 0,
+      topSpain: 0,
       checkedItems: allItems.length,
+      message: "No valid TikTok items found",
     };
   }
 
-  const last48h = rows.filter((row: any) => row.age_hours <= 48);
-  const last7days = rows.filter((row: any) => row.age_hours <= 168);
+  const spainRows = rows.filter(isSpainCandidate);
 
-  let selectedPool = last48h;
+  const globalSelection = selectTopVideos(rows, MIN_GLOBAL_VIEWS);
+  const spainSelection = selectTopVideos(spainRows, MIN_SPAIN_VIEWS);
 
-  if (selectedPool.length < 10) {
-    selectedPool = last7days;
-  }
-
-  if (selectedPool.length < 10) {
-    selectedPool = rows;
-  }
-
-  selectedPool = selectedPool.sort((a: any, b: any) => b.views - a.views);
+  const poolRows = [
+    ...rows.map((row: any) => ({
+      ...row,
+      market: "global",
+    })),
+    ...spainRows.map((row: any) => ({
+      ...row,
+      market: "spain",
+    })),
+  ];
 
   const { error: poolError } = await supabase
     .from("trend_pool")
     .upsert(
-      rows.map((row: any) => ({
-        apify_id: row.apify_id,
+      poolRows.map((row: any) => ({
+        apify_id: `${row.market}_${row.apify_id}`,
         title: row.title,
         audio: row.audio,
         hashtags: row.hashtags,
@@ -240,6 +304,7 @@ async function importFromLatestApifyRuns() {
         shares: row.shares,
         comments: row.comments,
         score: row.score,
+        market: row.market,
       })),
       { onConflict: "apify_id" }
     );
@@ -250,8 +315,9 @@ async function importFromLatestApifyRuns() {
 
   await supabase.from("trends").delete().neq("id", 0);
 
-  const trends = selectedPool.slice(0, 10).map((item: any, index: number) => ({
+  const globalTrends = globalSelection.rows.map((item: any, index: number) => ({
     position: index + 1,
+    market: "global",
     apify_id: item.apify_id,
     audio: item.audio || "Unknown audio",
     hashtags: item.hashtags || "",
@@ -265,18 +331,43 @@ async function importFromLatestApifyRuns() {
     comments: item.comments,
   }));
 
-  const { error: trendsError } = await supabase.from("trends").insert(trends);
+  const spainTrends = spainSelection.rows.map((item: any, index: number) => ({
+    position: index + 1,
+    market: "spain",
+    apify_id: item.apify_id,
+    audio: item.audio || "Unknown audio",
+    hashtags: item.hashtags || "",
+    image_url: item.image_url || "",
+    video_url: item.video_url,
+    tiktok_url: item.tiktok_url,
+    author_username: item.author_username,
+    views: item.views,
+    likes: item.likes,
+    shares: item.shares,
+    comments: item.comments,
+  }));
 
-  if (trendsError) {
-    throw new Error(trendsError.message);
+  const trends = [...globalTrends, ...spainTrends];
+
+  if (trends.length > 0) {
+    const { error: trendsError } = await supabase
+      .from("trends")
+      .insert(trends);
+
+    if (trendsError) {
+      throw new Error(trendsError.message);
+    }
   }
 
   return {
     ok: true,
     imported: rows.length,
-    top: trends.length,
+    topGlobal: globalTrends.length,
+    topSpain: spainTrends.length,
     checkedItems: allItems.length,
-    ranking: selectedPool === last48h ? "last_48h_by_views" : selectedPool === last7days ? "last_7d_by_views" : "all_by_views",
+    globalRanking: globalSelection.ranking,
+    spainRanking: spainSelection.ranking,
+    spainCandidates: spainRows.length,
   };
 }
 
