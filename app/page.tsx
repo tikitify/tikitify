@@ -129,12 +129,10 @@ export default function Home() {
         </div>
 
         <div className="flex justify-end">
-          <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-medium text-zinc-200">
-            <span>🕒 {dateTime.time}</span>
-            <span className="text-zinc-600">·</span>
-            <span>📅 {dateTime.day}</span>
-          </div>
-        </div>
+  <div className="rounded-full border border-zinc-800 bg-zinc-950 px-5 py-2 text-sm font-semibold tracking-wide text-white">
+    {dateTime.day.toUpperCase()}
+  </div>
+</div>
       </header>
 
       <div className="flex gap-4 overflow-x-auto pb-3">
