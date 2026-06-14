@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+type Market = "global" | "spain";
+
 type Trend = {
   id: number;
   position: number;
+  market: Market;
   audio: string;
   hashtags: string;
   image_url: string;
@@ -29,6 +32,7 @@ function getTikTokEmbedUrl(url: string | null) {
 }
 
 export default function Home() {
+  const [market, setMarket] = useState<Market>("global");
   const [trends, setTrends] = useState<Trend[]>([]);
 
   useEffect(() => {
@@ -36,6 +40,7 @@ export default function Home() {
       const { data, error } = await supabase
         .from("trends")
         .select("*")
+        .eq("market", market)
         .order("position", { ascending: true });
 
       if (error) {
@@ -47,7 +52,7 @@ export default function Home() {
     }
 
     loadTrends();
-  }, []);
+  }, [market]);
 
   async function copyHashtags(hashtags: string) {
     await navigator.clipboard.writeText(hashtags || "");
@@ -71,6 +76,30 @@ export default function Home() {
         />
       </div>
 
+      <div className="mb-5 flex justify-center gap-3">
+        <button
+          onClick={() => setMarket("global")}
+          className={`rounded-full px-5 py-2 text-sm font-semibold ${
+            market === "global"
+              ? "bg-white text-black"
+              : "bg-zinc-900 text-white border border-zinc-700"
+          }`}
+        >
+          🌍 Global
+        </button>
+
+        <button
+          onClick={() => setMarket("spain")}
+          className={`rounded-full px-5 py-2 text-sm font-semibold ${
+            market === "spain"
+              ? "bg-white text-black"
+              : "bg-zinc-900 text-white border border-zinc-700"
+          }`}
+        >
+          🇪🇸 España
+        </button>
+      </div>
+
       <div className="flex gap-4 overflow-x-auto pb-3">
         {trends.map((trend) => {
           const embedUrl = getTikTokEmbedUrl(trend.tiktok_url);
@@ -84,12 +113,12 @@ export default function Home() {
                 {embedUrl ? (
                   <iframe
                     src={embedUrl}
-                    allow="fullscreen"
+                    allow="autoplay; encrypted-media; fullscreen"
                     allowFullScreen
                     className="h-full w-full border-0"
                   />
                 ) : (
-                  <div className="h-full w-full flex items-center justify-center text-zinc-500 text-sm">
+                  <div className="flex h-full w-full items-center justify-center text-sm text-zinc-500">
                     Video unavailable
                   </div>
                 )}
@@ -100,12 +129,12 @@ export default function Home() {
                   #{trend.position}
                 </h2>
 
-                <p className="mt-2 text-[11px] text-zinc-300 truncate">
+                <p className="mt-2 truncate text-[11px] text-zinc-300">
                   ♪ {trend.audio}
                 </p>
 
                 {trend.author_username && (
-                  <p className="mt-1 text-[11px] text-zinc-500 truncate">
+                  <p className="mt-1 truncate text-[11px] text-zinc-500">
                     @{trend.author_username}
                   </p>
                 )}
