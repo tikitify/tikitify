@@ -171,14 +171,13 @@ async function importFromLatestApifyRuns() {
       };
     })
     .filter((row: any) => {
-      return (
-        row.apify_id &&
-        row.title &&
-        row.tiktok_url &&
-        row.views > 0
-      );
-    })
-    .sort((a: any, b: any) => b.score - a.score);
+  return (
+    row.apify_id &&
+    row.tiktok_url &&
+    row.views > 0
+  );
+})
+.sort((a: any, b: any) => b.views - a.views);
 
   if (rows.length === 0) {
     return {
