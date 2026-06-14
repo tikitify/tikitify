@@ -144,7 +144,7 @@ export default function Home() {
               key={trend.id}
               className="flex min-w-[280px] max-w-[280px] flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950"
             >
-              <div className="h-[410px] bg-black">
+              <div className="h-[370px] bg-black">
                 {embedUrl ? (
                   <iframe
                     src={embedUrl}
