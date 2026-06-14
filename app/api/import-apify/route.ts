@@ -20,9 +20,27 @@ function extractHashtags(title: string) {
 function normalizeHashtags(item: any, title: string) {
   if (Array.isArray(item.hashtags) && item.hashtags.length > 0) {
     return item.hashtags
-      .map((tag: string) => {
-        const cleanTag = String(tag).replace("#", "").trim();
-        return cleanTag ? `#${cleanTag}` : "";
+      .map((tag: any) => {
+        if (typeof tag === "string") {
+          const cleanTag = tag.replace("#", "").trim();
+          return cleanTag ? `#${cleanTag}` : "";
+        }
+
+        if (tag && typeof tag === "object") {
+          const possibleTag =
+            tag.name ||
+            tag.title ||
+            tag.hashtag ||
+            tag.hashtagName ||
+            tag.text ||
+            "";
+
+          const cleanTag = String(possibleTag).replace("#", "").trim();
+
+          return cleanTag ? `#${cleanTag}` : "";
+        }
+
+        return "";
       })
       .filter(Boolean)
       .join(" ");
