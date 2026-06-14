@@ -39,8 +39,7 @@ function formatDateTime(date: Date) {
 
   const day = date.toLocaleDateString("es-ES", {
     day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
+    month: "short",
   });
 
   return { time, day };
@@ -93,9 +92,9 @@ export default function Home() {
   const dateTime = formatDateTime(now);
 
   return (
-    <main className="min-h-screen bg-black text-white px-4 py-4">
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+    <main className="min-h-screen bg-black text-white px-3 py-3">
+      <header className="grid grid-cols-3 items-center mb-3">
+        <div className="flex items-center justify-start gap-2">
           <button
             aria-label="Global trends"
             onClick={() => setMarket("global")}
@@ -121,19 +120,22 @@ export default function Home() {
           </button>
         </div>
 
-        <div className="flex items-center gap-3 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-medium text-zinc-300">
-          <span>◷ {dateTime.time}</span>
-          <span>□ {dateTime.day}</span>
+        <div className="flex justify-center">
+          <img
+            src="/logo.png"
+            alt="Tikitify"
+            className="h-16 w-auto"
+          />
         </div>
-      </div>
 
-      <div className="flex justify-center mb-3">
-        <img
-          src="/logo.png"
-          alt="Tikitify"
-          className="h-20 md:h-20 w-auto"
-        />
-      </div>
+        <div className="flex justify-end">
+          <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-medium text-zinc-200">
+            <span>🕒 {dateTime.time}</span>
+            <span className="text-zinc-600">·</span>
+            <span>📅 {dateTime.day}</span>
+          </div>
+        </div>
+      </header>
 
       <div className="flex gap-4 overflow-x-auto pb-3">
         {trends.map((trend) => {
@@ -142,9 +144,9 @@ export default function Home() {
           return (
             <div
               key={trend.id}
-              className="flex min-w-[320px] max-w-[320px] flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950"
+              className="flex min-w-[280px] max-w-[280px] flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950"
             >
-              <div className="aspect-[9/16] bg-black">
+              <div className="h-[410px] bg-black">
                 {embedUrl ? (
                   <iframe
                     src={embedUrl}
@@ -159,7 +161,7 @@ export default function Home() {
                 )}
               </div>
 
-              <div className="flex min-h-[270px] flex-1 flex-col p-3">
+              <div className="flex min-h-[210px] flex-1 flex-col p-3">
                 <h2 className="text-base font-bold leading-none">
                   #{trend.position}
                 </h2>
@@ -172,18 +174,15 @@ export default function Home() {
                   {trend.author_username ? `@${trend.author_username}` : ""}
                 </p>
 
-                <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-zinc-300">
-                  <span>◌ {formatNumber(trend.views)}</span>
-                  <span>♡ {formatNumber(trend.likes)}</span>
-                  <span>↗ {formatNumber(trend.shares)}</span>
-                  <span>▢ {formatNumber(trend.comments)}</span>
+                <div className="mt-2 text-[11px] font-medium text-zinc-300">
+                  👁 {formatNumber(trend.views)}
                 </div>
 
-                <p className="mt-2 min-h-[40px] line-clamp-2 text-[11px] leading-snug text-zinc-500">
+                <p className="mt-2 min-h-[34px] line-clamp-2 text-[11px] leading-snug text-zinc-500">
                   {trend.hashtags || "No hashtags"}
                 </p>
 
-                <div className="mt-auto">
+                <div className="mt-2">
                   <button
                     onClick={() => copyHashtags(trend.hashtags)}
                     className="w-full rounded-lg bg-white py-1.5 text-xs font-semibold text-black"
