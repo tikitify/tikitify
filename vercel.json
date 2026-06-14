@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/import-apify?secret=tikitify-import-secret",
+      "schedule": "0 */3 * * *"
+    }
+  ]
+}
