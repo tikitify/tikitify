@@ -53,7 +53,7 @@ function getUploadedAt(item: any) {
 }
 
 function getAgeHours(uploadedAt: any) {
-  if (!uploadedAt) return 9999;
+  if (!uploadedAt) return 999999;
 
   let date: Date;
 
@@ -63,29 +63,14 @@ function getAgeHours(uploadedAt: any) {
     date = new Date(uploadedAt);
   }
 
-  if (Number.isNaN(date.getTime())) return 9999;
+  if (Number.isNaN(date.getTime())) return 999999;
 
   const diffMs = Date.now() - date.getTime();
   return Math.max(diffMs / (1000 * 60 * 60), 1);
 }
 
-function freshnessScore(item: any) {
-  const views = getViews(item);
-  const likes = getLikes(item);
-  const comments = getComments(item);
-  const shares = getShares(item);
-  const uploadedAt = getUploadedAt(item);
-  const ageHours = getAgeHours(uploadedAt);
-
-  const engagementScore =
-    views +
-    likes * 2 +
-    comments * 20 +
-    shares * 50;
-
-  const freshnessPenalty = Math.pow(ageHours + 12, 0.9);
-
-  return Math.round(engagementScore / freshnessPenalty);
+function score(item: any) {
+  return getViews(item);
 }
 
 async function importFromLatestApifyRuns() {
@@ -185,6 +170,7 @@ async function importFromLatestApifyRuns() {
       const shares = getShares(item);
       const comments = getComments(item);
       const uploadedAt = getUploadedAt(item);
+      const ageHours = getAgeHours(uploadedAt);
 
       return {
         apify_id: String(itemId),
@@ -199,8 +185,9 @@ async function importFromLatestApifyRuns() {
         likes,
         shares,
         comments,
-        score: freshnessScore(item),
+        score: score(item),
         uploaded_at: uploadedAt,
+        age_hours: ageHours,
       };
     })
     .filter((row: any) => {
@@ -209,8 +196,7 @@ async function importFromLatestApifyRuns() {
         row.tiktok_url &&
         row.views > 0
       );
-    })
-    .sort((a: any, b: any) => b.score - a.score);
+    });
 
   if (rows.length === 0) {
     return {
@@ -221,6 +207,21 @@ async function importFromLatestApifyRuns() {
       checkedItems: allItems.length,
     };
   }
+
+  const last48h = rows.filter((row: any) => row.age_hours <= 48);
+  const last7days = rows.filter((row: any) => row.age_hours <= 168);
+
+  let selectedPool = last48h;
+
+  if (selectedPool.length < 10) {
+    selectedPool = last7days;
+  }
+
+  if (selectedPool.length < 10) {
+    selectedPool = rows;
+  }
+
+  selectedPool = selectedPool.sort((a: any, b: any) => b.views - a.views);
 
   const { error: poolError } = await supabase
     .from("trend_pool")
@@ -249,7 +250,7 @@ async function importFromLatestApifyRuns() {
 
   await supabase.from("trends").delete().neq("id", 0);
 
-  const trends = rows.slice(0, 10).map((item: any, index: number) => ({
+  const trends = selectedPool.slice(0, 10).map((item: any, index: number) => ({
     position: index + 1,
     apify_id: item.apify_id,
     audio: item.audio || "Unknown audio",
@@ -275,7 +276,7 @@ async function importFromLatestApifyRuns() {
     imported: rows.length,
     top: trends.length,
     checkedItems: allItems.length,
-    ranking: "freshness_score",
+    ranking: selectedPool === last48h ? "last_48h_by_views" : selectedPool === last7days ? "last_7d_by_views" : "all_by_views",
   };
 }
 
