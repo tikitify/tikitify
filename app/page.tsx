@@ -46,7 +46,7 @@ function formatDateTime(date: Date) {
 }
 
 export default function Home() {
-  const [market, setMarket] = useState<Market>("global");
+  const [market, setMarket] = useState<Market>("spain");
   const [trends, setTrends] = useState<Trend[]>([]);
   const [now, setNow] = useState(new Date());
 
