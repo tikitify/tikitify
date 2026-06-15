@@ -547,16 +547,22 @@ async function importFromLatestApifyRuns() {
   }
 
   return {
-    ok: true,
-    imported: rows.length,
-    topGlobal: globalTrends.length,
-    topSpain: spainTrends.length,
-    checkedItems: allItems.length,
-    globalRanking: globalSelection.ranking,
-    spainRanking: spainSelection.ranking,
-    spainCandidates: spainRows.length,
-    rotation: "soft_position_demotion",
-  };
+  ok: true,
+
+  checkedItems: allItems.length,
+  uniqueItems: uniqueItems.length,
+
+  imported: rows.length,
+
+  topGlobal: globalTrends.length,
+  topSpain: globalTrends.length,
+
+  globalRanking: globalSelection.ranking,
+  spainRanking: spainSelection.ranking,
+  spainCandidates: spainRows.length,
+
+  rotation: "enabled",
+};
 }
 
 export async function GET(request: Request) {
