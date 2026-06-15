@@ -76,7 +76,29 @@ function normalizeTikTokUrl(url: string | null) {
 }
 
 function getTikTokUrl(item: any) {
-  return normalizeTikTokUrl(item.postPage || item.url || item.webVideoUrl || null);
+  return normalizeTikTokUrl(
+    item.postPage ||
+      item.url ||
+      item.webVideoUrl ||
+      item["postPage"] ||
+      item["webVideoUrl"] ||
+      null
+  );
+}
+
+function getItemKey(item: any) {
+  const tiktokUrl = getTikTokUrl(item);
+
+  return (
+    item.id ||
+    item.videoId ||
+    item.awemeId ||
+    item["id"] ||
+    item["videoId"] ||
+    item["awemeId"] ||
+    tiktokUrl ||
+    null
+  );
 }
 
 function getUploadedAt(item: any) {
@@ -316,16 +338,16 @@ async function importFromLatestApifyRuns() {
 
   const uniqueItems = Array.from(
     new Map(
-      allItems.map((item) => [
-        String(item.id || item.videoId || item.awemeId),
-        item,
-      ])
+      allItems.map((item) => {
+        const itemKey = getItemKey(item);
+        return [String(itemKey), item];
+      })
     ).values()
   );
 
   const rows = uniqueItems
     .map((item: any) => {
-      const itemId = item.id || item.videoId || item.awemeId;
+      const itemKey = getItemKey(item);
 
       const title =
         item.title ||
@@ -384,7 +406,7 @@ async function importFromLatestApifyRuns() {
       const ageHours = getAgeHours(uploadedAt);
 
       return {
-        apify_id: String(itemId),
+        apify_id: String(itemKey),
         input_source: item.inputSource || item.search || item.query || "",
         title,
         audio,
@@ -403,7 +425,13 @@ async function importFromLatestApifyRuns() {
       };
     })
     .filter((row: any) => {
-      return row.apify_id && row.tiktok_url && row.views > 0;
+      return (
+        row.apify_id &&
+        row.apify_id !== "null" &&
+        row.apify_id !== "undefined" &&
+        row.tiktok_url &&
+        row.views > 0
+      );
     });
 
   if (rows.length === 0) {

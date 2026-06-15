@@ -1,0 +1,10 @@
+[33m075c335[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Force Vercel redeploy
+[33m697ba63[m Use soft trend rotation
+[33m105ed56[m Adjust trend rotation threshold
+[33m60034b9[m Force trend rotation
+[33me92eafa[m Rotate repeated trend videos
+[33m85f6c82[m Run Apify import every 3 hours
+[33m955e0e5[m Fix object hashtags from Apify
+[33mea89acc[m Reduce card height
+[33m17997b6[m Replace datetime with date capsule
+[33m3f4aaa2[m Show Spain trends by default
