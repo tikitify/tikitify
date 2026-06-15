@@ -145,7 +145,7 @@ function applyHistoryPenalty(rows: any[], market: "global" | "spain", historyMap
 
     let penalty = 1;
 
-if (timesSeen >= 2) {
+if (timesSeen >= 3) {
   penalty = 0;
 }
 
