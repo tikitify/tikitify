@@ -10,6 +10,12 @@ const supabase = createClient(
 
 const MIN_GLOBAL_VIEWS = 1000000;
 const MIN_SPAIN_VIEWS = 100000;
+const HISTORY_RESET_HOURS = 48;
+
+type HistoryValue = {
+  timesSeen: number;
+  lastSeen: string | null;
+};
 
 function extractHashtags(title: string) {
   if (!title) return "";
@@ -94,6 +100,17 @@ function getAgeHours(uploadedAt: any) {
   return Math.max(diffMs / (1000 * 60 * 60), 1);
 }
 
+function getHoursSince(dateValue: string | null) {
+  if (!dateValue) return 999999;
+
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) return 999999;
+
+  const diffMs = Date.now() - date.getTime();
+  return Math.max(diffMs / (1000 * 60 * 60), 1);
+}
+
 function isSpainCandidate(row: any) {
   const text = [
     row.input_source,
@@ -123,88 +140,111 @@ function isSpainCandidate(row: any) {
 async function getHistoryMap() {
   const { data, error } = await supabase
     .from("trend_history")
-    .select("apify_id, market, times_seen");
+    .select("apify_id, market, times_seen, last_seen");
 
   if (error) {
     console.error("History fetch error:", error.message);
-    return new Map<string, number>();
+    return new Map<string, HistoryValue>();
   }
 
-  const map = new Map<string, number>();
+  const map = new Map<string, HistoryValue>();
 
   for (const item of data || []) {
-    map.set(`${item.market}_${item.apify_id}`, item.times_seen || 0);
+    map.set(`${item.market}_${item.apify_id}`, {
+      timesSeen: item.times_seen || 0,
+      lastSeen: item.last_seen || null,
+    });
   }
 
   return map;
 }
 
-function applyHistoryPenalty(rows: any[], market: "global" | "spain", historyMap: Map<string, number>) {
-  return rows.map((row) => {
-    const timesSeen = historyMap.get(`${market}_${row.apify_id}`) || 0;
+function applySmartRotation(
+  rows: any[],
+  market: "global" | "spain",
+  historyMap: Map<string, HistoryValue>
+) {
+  const sortedByViews = [...rows].sort((a, b) => b.views - a.views);
 
-    let penalty = 1;
+  return sortedByViews
+    .map((row, index) => {
+      const history = historyMap.get(`${market}_${row.apify_id}`);
+      const hoursSinceLastSeen = getHoursSince(history?.lastSeen || null);
 
-if (timesSeen >= 3) {
-  penalty = 0;
+      const activeTimesSeen =
+        hoursSinceLastSeen <= HISTORY_RESET_HOURS
+          ? history?.timesSeen || 0
+          : 0;
+
+      const demotionSlots = Math.min(activeTimesSeen, 5);
+
+      return {
+        ...row,
+        market,
+        times_seen: activeTimesSeen,
+        original_rank: index + 1,
+        adjusted_rank: index + 1 + demotionSlots,
+      };
+    })
+    .sort((a, b) => {
+      if (a.adjusted_rank !== b.adjusted_rank) {
+        return a.adjusted_rank - b.adjusted_rank;
+      }
+
+      return b.views - a.views;
+    });
 }
 
-    return {
-      ...row,
-      market,
-      times_seen: timesSeen,
-      ranking_score: row.views * penalty,
-    };
-  });
-}
-
-function selectTopVideos(rows: any[], minViews: number, market: "global" | "spain", historyMap: Map<string, number>) {
+function selectTopVideos(
+  rows: any[],
+  minViews: number,
+  market: "global" | "spain",
+  historyMap: Map<string, HistoryValue>
+) {
   const validRows = rows.filter((row) => row.views > 0 && row.tiktok_url);
 
   const last48h = validRows.filter((row) => row.age_hours <= 48);
   const last7days = validRows.filter((row) => row.age_hours <= 168);
   const last30days = validRows.filter((row) => row.age_hours <= 720);
 
-  const sortWithPenalty = (items: any[]) =>
-    applyHistoryPenalty(items, market, historyMap).sort((a, b) => {
-      if (b.ranking_score !== a.ranking_score) {
-        return b.ranking_score - a.ranking_score;
-      }
+  const rotated48h = applySmartRotation(last48h, market, historyMap);
+  const rotated7d = applySmartRotation(last7days, market, historyMap);
+  const rotated30d = applySmartRotation(last30days, market, historyMap);
+  const rotatedAll = applySmartRotation(validRows, market, historyMap);
 
-      return b.views - a.views;
-    });
-
-  const sorted48h = sortWithPenalty(last48h);
-  const sorted7d = sortWithPenalty(last7days);
-  const sorted30d = sortWithPenalty(last30days);
-  const sortedAll = sortWithPenalty(validRows);
-
-  if (sorted48h.length >= 10 && sorted48h[9].views >= minViews) {
-    return { rows: sorted48h.slice(0, 10), ranking: "last_48h_by_views_with_rotation" };
+  if (rotated48h.length >= 10 && rotated48h[9].views >= minViews) {
+    return {
+      rows: rotated48h.slice(0, 10),
+      ranking: "last_48h_by_views_soft_rotation",
+    };
   }
 
-  if (sorted7d.length >= 10 && sorted7d[9].views >= minViews) {
-    return { rows: sorted7d.slice(0, 10), ranking: "last_7d_by_views_with_rotation" };
+  if (rotated7d.length >= 10 && rotated7d[9].views >= minViews) {
+    return {
+      rows: rotated7d.slice(0, 10),
+      ranking: "last_7d_by_views_soft_rotation",
+    };
   }
 
-  if (sorted30d.length >= 10) {
-    return { rows: sorted30d.slice(0, 10), ranking: "last_30d_by_views_with_rotation" };
+  if (rotated30d.length >= 10) {
+    return {
+      rows: rotated30d.slice(0, 10),
+      ranking: "last_30d_by_views_soft_rotation",
+    };
   }
 
-  return { rows: sortedAll.slice(0, 10), ranking: "all_by_views_with_rotation" };
+  return {
+    rows: rotatedAll.slice(0, 10),
+    ranking: "all_by_views_soft_rotation",
+  };
 }
 
 async function updateTrendHistory(trends: any[]) {
   if (trends.length === 0) return;
 
-  const keys = trends.map((trend) => ({
-    apify_id: trend.apify_id,
-    market: trend.market,
-  }));
-
   const { data: existingHistory, error: historyError } = await supabase
     .from("trend_history")
-    .select("apify_id, market, first_seen, times_seen");
+    .select("apify_id, market, first_seen, last_seen, times_seen");
 
   if (historyError) {
     console.error("History read error:", historyError.message);
@@ -219,15 +259,17 @@ async function updateTrendHistory(trends: any[]) {
 
   const now = new Date().toISOString();
 
-  const historyRows = keys.map((key) => {
-    const existing = existingMap.get(`${key.market}_${key.apify_id}`);
+  const historyRows = trends.map((trend) => {
+    const existing = existingMap.get(`${trend.market}_${trend.apify_id}`);
+    const hoursSinceLastSeen = getHoursSince(existing?.last_seen || null);
+    const shouldReset = hoursSinceLastSeen > HISTORY_RESET_HOURS;
 
     return {
-      apify_id: key.apify_id,
-      market: key.market,
-      first_seen: existing?.first_seen || now,
+      apify_id: trend.apify_id,
+      market: trend.market,
+      first_seen: shouldReset ? now : existing?.first_seen || now,
       last_seen: now,
-      times_seen: (existing?.times_seen || 0) + 1,
+      times_seen: shouldReset ? 1 : (existing?.times_seen || 0) + 1,
     };
   });
 
@@ -377,8 +419,19 @@ async function importFromLatestApifyRuns() {
 
   const spainRows = rows.filter(isSpainCandidate);
 
-  const globalSelection = selectTopVideos(rows, MIN_GLOBAL_VIEWS, "global", historyMap);
-  const spainSelection = selectTopVideos(spainRows, MIN_SPAIN_VIEWS, "spain", historyMap);
+  const globalSelection = selectTopVideos(
+    rows,
+    MIN_GLOBAL_VIEWS,
+    "global",
+    historyMap
+  );
+
+  const spainSelection = selectTopVideos(
+    spainRows,
+    MIN_SPAIN_VIEWS,
+    "spain",
+    historyMap
+  );
 
   const poolRows = [
     ...rows.map((row: any) => ({
@@ -474,7 +527,7 @@ async function importFromLatestApifyRuns() {
     globalRanking: globalSelection.ranking,
     spainRanking: spainSelection.ranking,
     spainCandidates: spainRows.length,
-    rotation: "enabled",
+    rotation: "soft_position_demotion",
   };
 }
 
