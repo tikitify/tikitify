@@ -145,10 +145,9 @@ function applyHistoryPenalty(rows: any[], market: "global" | "spain", historyMap
 
     let penalty = 1;
 
-    if (timesSeen === 1) penalty = 0.85;
-    if (timesSeen === 2) penalty = 0.65;
-    if (timesSeen >= 3) penalty = 0.45;
-    if (timesSeen >= 5) penalty = 0.25;
+if (timesSeen >= 2) {
+  penalty = 0;
+}
 
     return {
       ...row,
