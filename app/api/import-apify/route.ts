@@ -198,7 +198,7 @@ function applySmartRotation(
           ? history?.timesSeen || 0
           : 0;
 
-      const demotionSlots = Math.min(activeTimesSeen, * 2, 8);
+      const demotionSlots = Math.min(activeTimesSeen * 2, 8);
 
       return {
         ...row,
