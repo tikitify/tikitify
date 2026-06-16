@@ -14,6 +14,7 @@ const HISTORY_RESET_HOURS = 48;
 
 type HistoryValue = {
   timesSeen: number;
+  firstSeen: string | null;
   lastSeen: string | null;
 };
 
@@ -133,6 +134,17 @@ function getHoursSince(dateValue: string | null) {
   return Math.max(diffMs / (1000 * 60 * 60), 1);
 }
 
+function getFullDaysSince(dateValue: string | null) {
+  if (!dateValue) return 0;
+
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) return 0;
+
+  const diffMs = Date.now() - date.getTime();
+  return Math.max(Math.floor(diffMs / (1000 * 60 * 60 * 24)), 0);
+}
+
 function isSpainCandidate(row: any) {
   const text = [
     row.input_source,
@@ -162,7 +174,7 @@ function isSpainCandidate(row: any) {
 async function getHistoryMap() {
   const { data, error } = await supabase
     .from("trend_history")
-    .select("apify_id, market, times_seen, last_seen");
+    .select("apify_id, market, first_seen, last_seen, times_seen");
 
   if (error) {
     console.error("History fetch error:", error.message);
@@ -174,6 +186,7 @@ async function getHistoryMap() {
   for (const item of data || []) {
     map.set(`${item.market}_${item.apify_id}`, {
       timesSeen: item.times_seen || 0,
+      firstSeen: item.first_seen || null,
       lastSeen: item.last_seen || null,
     });
   }
@@ -193,17 +206,17 @@ function applySmartRotation(
       const history = historyMap.get(`${market}_${row.apify_id}`);
       const hoursSinceLastSeen = getHoursSince(history?.lastSeen || null);
 
-      const activeTimesSeen =
+      const activeDaysSeen =
         hoursSinceLastSeen <= HISTORY_RESET_HOURS
-          ? history?.timesSeen || 0
+          ? getFullDaysSince(history?.firstSeen || null)
           : 0;
 
-      const demotionSlots = Math.min(activeTimesSeen * 2, 8);
+      const demotionSlots = Math.min(activeDaysSeen * 2, 8);
 
       return {
         ...row,
         market,
-        times_seen: activeTimesSeen,
+        days_seen: activeDaysSeen,
         original_rank: index + 1,
         adjusted_rank: index + 1 + demotionSlots,
       };
@@ -237,27 +250,27 @@ function selectTopVideos(
   if (rotated48h.length >= 10 && rotated48h[9].views >= minViews) {
     return {
       rows: rotated48h.slice(0, 10),
-      ranking: "last_48h_by_views_soft_rotation",
+      ranking: "last_48h_by_views_daily_rotation",
     };
   }
 
   if (rotated7d.length >= 10 && rotated7d[9].views >= minViews) {
     return {
       rows: rotated7d.slice(0, 10),
-      ranking: "last_7d_by_views_soft_rotation",
+      ranking: "last_7d_by_views_daily_rotation",
     };
   }
 
   if (rotated30d.length >= 10) {
     return {
       rows: rotated30d.slice(0, 10),
-      ranking: "last_30d_by_views_soft_rotation",
+      ranking: "last_30d_by_views_daily_rotation",
     };
   }
 
   return {
     rows: rotatedAll.slice(0, 10),
-    ranking: "all_by_views_soft_rotation",
+    ranking: "all_by_views_daily_rotation",
   };
 }
 
@@ -407,7 +420,7 @@ async function importFromLatestApifyRuns() {
 
       return {
         apify_id: String(itemKey),
-        input_source: item.inputSource || item.search || item.query || "",
+        input_source: item.inputSource || item.search || item.query || item.keyword || "",
         title,
         audio,
         hashtags,
@@ -446,9 +459,10 @@ async function importFromLatestApifyRuns() {
   }
 
   const spainRows = rows.filter(isSpainCandidate);
+  const globalRows = rows.filter((row: any) => !isSpainCandidate(row));
 
   const globalSelection = selectTopVideos(
-    rows,
+    globalRows,
     MIN_GLOBAL_VIEWS,
     "global",
     historyMap
@@ -462,7 +476,7 @@ async function importFromLatestApifyRuns() {
   );
 
   const poolRows = [
-    ...rows.map((row: any) => ({
+    ...globalRows.map((row: any) => ({
       ...row,
       market: "global",
     })),
@@ -547,22 +561,23 @@ async function importFromLatestApifyRuns() {
   }
 
   return {
-  ok: true,
+    ok: true,
 
-  checkedItems: allItems.length,
-  uniqueItems: uniqueItems.length,
+    checkedItems: allItems.length,
+    uniqueItems: uniqueItems.length,
+    imported: rows.length,
 
-  imported: rows.length,
+    globalCandidates: globalRows.length,
+    spainCandidates: spainRows.length,
 
-  topGlobal: globalTrends.length,
-  topSpain: globalTrends.length,
+    topGlobal: globalTrends.length,
+    topSpain: spainTrends.length,
 
-  globalRanking: globalSelection.ranking,
-  spainRanking: spainSelection.ranking,
-  spainCandidates: spainRows.length,
+    globalRanking: globalSelection.ranking,
+    spainRanking: spainSelection.ranking,
 
-  rotation: "enabled",
-};
+    rotation: "daily_position_demotion",
+  };
 }
 
 export async function GET(request: Request) {
