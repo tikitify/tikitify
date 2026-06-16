@@ -13,9 +13,34 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tikitify | Vídeos virales de TikTok en España y el mundo",
-  description:
-    "Descubre los vídeos más virales de TikTok. Rankings actualizados automáticamente para España y el resto del mundo.",
+  metadataBase: new URL("https://www.tikitify.com"),
+  title: "Tikitify | TikTok Trends Today",
+  description: "Discover today's viral TikTok trends, updated automatically.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Tikitify",
+    description: "TikTok Trends Today",
+    url: "https://www.tikitify.com",
+    siteName: "Tikitify",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Tikitify - TikTok Trends Today",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tikitify",
+    description: "TikTok Trends Today",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({
@@ -25,7 +50,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="es"
+      lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
