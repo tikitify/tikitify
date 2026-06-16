@@ -207,11 +207,27 @@ function applySmartRotation(
       const hoursSinceLastSeen = getHoursSince(history?.lastSeen || null);
 
       const activeDaysSeen =
-        hoursSinceLastSeen <= HISTORY_RESET_HOURS
-          ? getFullDaysSince(history?.firstSeen || null)
-          : 0;
+  hoursSinceLastSeen <= HISTORY_RESET_HOURS
+    ? getFullDaysSince(history?.firstSeen || null)
+    : 0;
 
-      const demotionSlots = Math.min(activeDaysSeen * 2, 8);
+let demotionMultiplier = 0;
+
+if (index <= 2) {
+  // Top 1-3
+  demotionMultiplier = 2;
+} else if (index <= 5) {
+  // Top 4-6
+  demotionMultiplier = 1;
+} else {
+  // Top 7-10
+  demotionMultiplier = 0;
+}
+
+const demotionSlots = Math.min(
+  activeDaysSeen * demotionMultiplier,
+  8
+);
 
       return {
         ...row,
