@@ -160,9 +160,18 @@ export default function Home() {
               </div>
 
               <div className="flex min-h-[210px] flex-1 flex-col p-3">
-                <h2 className="text-base font-bold leading-none">
-                  #{trend.position}
-                </h2>
+                <div className="flex items-center justify-between">
+  <h2 className="text-base font-bold leading-none">
+    #{trend.position}
+  </h2>
+
+  <a
+    href={`/video/${trend.id}`}
+    className="rounded-full border border-zinc-700 px-3 py-1 text-xs font-semibold text-white"
+  >
+    Share
+  </a>
+</div>
 
                 <p className="mt-2 truncate text-[11px] text-zinc-300">
                   ♪ {trend.audio}
