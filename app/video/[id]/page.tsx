@@ -48,20 +48,17 @@ export default function VideoPage({
   useEffect(() => {
     async function loadTrend() {
       const { data, error } = await supabase
-        .from("trends")
-        .select("*")
-        .eq("id", Number(params.id))
-        .single();
+  .from("trends")
+  .select("*")
+  .eq("id", params.id)
+  .maybeSingle();
 
       if (error) {
-        console.error(error);
-        setTrend(null);
-        setLoading(false);
-        return;
-      }
+  console.error(error);
+}
 
-      setTrend(data);
-      setLoading(false);
+setTrend(data || null);
+setLoading(false);
     }
 
     loadTrend();
