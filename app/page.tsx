@@ -168,9 +168,22 @@ export default function Home() {
 <a
   href={`/video/${trend.id}`}
   aria-label="Share video"
-  className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 text-lg text-white"
+  className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 text-white transition hover:border-white"
 >
-  ⤴
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="m15 17 5-5-5-5" />
+    <path d="M4 18v-2a4 4 0 0 1 4-4h12" />
+  </svg>
 </a>
 </div>
 
