@@ -32,17 +32,12 @@ function getTikTokEmbedUrl(url: string | null) {
 }
 
 function formatDateTime(date: Date) {
-  const time = date.toLocaleTimeString("es-ES", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
   const day = date.toLocaleDateString("es-ES", {
     day: "2-digit",
     month: "short",
   });
 
-  return { time, day };
+  return { day };
 }
 
 export default function Home() {
@@ -82,6 +77,22 @@ export default function Home() {
     alert("Hashtags copied!");
   }
 
+  async function shareTrend(trend: Trend) {
+    const shareUrl = `${window.location.origin}/video/${trend.id}`;
+
+    if (navigator.share) {
+      await navigator.share({
+        title: `Tikitify | TikTok Trend #${trend.position}`,
+        text: "TikTok Trends Today",
+        url: shareUrl,
+      });
+      return;
+    }
+
+    await navigator.clipboard.writeText(shareUrl);
+    alert("Link copied!");
+  }
+
   function formatNumber(value: number | null) {
     if (!value) return "-";
     if (value >= 1000000) return (value / 1000000).toFixed(1) + "M";
@@ -92,8 +103,8 @@ export default function Home() {
   const dateTime = formatDateTime(now);
 
   return (
-    <main className="min-h-screen bg-black text-white px-3 py-3">
-      <header className="grid grid-cols-3 items-center mb-3">
+    <main className="min-h-screen bg-black px-3 py-3 text-white">
+      <header className="mb-3 grid grid-cols-3 items-center">
         <div className="flex items-center justify-start gap-2">
           <button
             aria-label="Global trends"
@@ -121,18 +132,20 @@ export default function Home() {
         </div>
 
         <div className="flex justify-center">
-          <img
-            src="/logo.png"
-            alt="Tikitify"
-            className="h-16 w-auto"
-          />
-        </div>
+  <a href="/">
+    <img
+      src="/logo.png"
+      alt="Tikitify"
+      className="h-16 w-auto cursor-pointer"
+    />
+  </a>
+</div>
 
         <div className="flex justify-end">
-  <div className="rounded-full border border-zinc-800 bg-zinc-950 px-5 py-2 text-sm font-semibold tracking-wide text-white">
-    {dateTime.day.toUpperCase()}
-  </div>
-</div>
+          <div className="rounded-full border border-zinc-800 bg-zinc-950 px-5 py-2 text-sm font-semibold tracking-wide text-white">
+            {dateTime.day.toUpperCase()}
+          </div>
+        </div>
       </header>
 
       <div className="flex gap-4 overflow-x-auto pb-3">
@@ -161,31 +174,32 @@ export default function Home() {
 
               <div className="flex min-h-[210px] flex-1 flex-col p-3">
                 <div className="flex items-center justify-between">
-  <h2 className="text-base font-bold leading-none">
-    #{trend.position}
-</h2>
+                  <h2 className="text-base font-bold leading-none">
+                    #{trend.position}
+                  </h2>
 
-<a
-  href={`/video/${trend.id}`}
-  aria-label="Share video"
-  className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 text-white transition hover:border-white"
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="m15 17 5-5-5-5" />
-    <path d="M4 18v-2a4 4 0 0 1 4-4h12" />
-  </svg>
-</a>
-</div>
+                  <button
+                    type="button"
+                    onClick={() => shareTrend(trend)}
+                    aria-label="Share video"
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 text-white transition hover:border-white"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="m15 17 5-5-5-5" />
+                      <path d="M4 18v-2a4 4 0 0 1 4-4h12" />
+                    </svg>
+                  </button>
+                </div>
 
                 <p className="mt-2 truncate text-[11px] text-zinc-300">
                   ♪ {trend.audio}
