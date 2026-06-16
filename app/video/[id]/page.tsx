@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
 
@@ -37,11 +38,9 @@ function formatNumber(value: number | null) {
   return value.toString();
 }
 
-export default function VideoPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function VideoPage() {
+  const params = useParams();
+  const id = params.id as string;
   const [trend, setTrend] = useState<Trend | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +49,7 @@ export default function VideoPage({
       const { data, error } = await supabase
   .from("trends")
   .select("*")
-  .eq("id", params.id)
+  .eq("id", id)
   .maybeSingle();
 
       if (error) {
@@ -62,7 +61,7 @@ setLoading(false);
     }
 
     loadTrend();
-  }, [params.id]);
+ }, [id]);
 
   if (loading) {
     return (
