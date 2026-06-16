@@ -3,17 +3,49 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 const searches = [
+  // España
+  { keywords: ["trend españa"], location: "ES" },
+  { keywords: ["viral españa"], location: "ES" },
+  { keywords: ["humor españa"], location: "ES" },
+  { keywords: ["comedia españa"], location: "ES" },
+  { keywords: ["fútbol españa"], location: "ES" },
+  { keywords: ["parati"], location: "ES" },
+  { keywords: ["memes españa"], location: "ES" },
+  { keywords: ["video españa"], location: "ES" },
+  { keywords: ["foryou españa"], location: "ES" },
+  { keywords: ["streamers españa"], location: "ES" },
+  { keywords: ["música españa"], location: "ES" },
+  { keywords: ["baile españa"], location: "ES" },
+  { keywords: ["DIY españa"], location: "ES" },
+  { keywords: ["noticias españa"], location: "ES" },
+  { keywords: ["aesthetic españa"], location: "ES" },
+  { keywords: ["dance españa"], location: "ES" },
+  { keywords: ["2026 españa"], location: "ES" },
+  { keywords: ["tips españa"], location: "ES" },
+  { keywords: ["tendencia españa"], location: "ES" },
+  { keywords: ["españa tiktok"], location: "ES" },
+
+  // Global
+  { keywords: ["viral"], location: "US" },
+  { keywords: ["trending"], location: "US" },
+  { keywords: ["fyp"], location: "US" },
   { keywords: ["funny"], location: "US" },
   { keywords: ["gaming"], location: "US" },
   { keywords: ["sports"], location: "US" },
   { keywords: ["music"], location: "US" },
-  { keywords: ["viral"], location: "US" },
-
-  { keywords: ["trend españa"], location: "ES" },
-  { keywords: ["humor españa"], location: "ES" },
-  { keywords: ["comedia españa"], location: "ES" },
-  { keywords: ["fútbol españa"], location: "ES" },
-  { keywords: ["streamers españa"], location: "ES" },
+  { keywords: ["memes"], location: "US" },
+  { keywords: ["news"], location: "US" },
+  { keywords: ["technology"], location: "US" },
+  { keywords: ["ai"], location: "US" },
+  { keywords: ["mrbeast"], location: "US" },
+  { keywords: ["youtube"], location: "US" },
+  { keywords: ["football"], location: "US" },
+  { keywords: ["nba"], location: "US" },
+  { keywords: ["movies"], location: "US" },
+  { keywords: ["anime"], location: "US" },
+  { keywords: ["streamers"], location: "US" },
+  { keywords: ["podcast"], location: "US" },
+  { keywords: ["celebrities"], location: "US" },
 ];
 
 export async function GET() {
@@ -54,5 +86,6 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     launched: results.length,
+    searches: searches.length,
   });
 }
