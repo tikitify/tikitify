@@ -170,7 +170,7 @@ export default function Home() {
   aria-label="Share video"
   className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 text-lg text-white"
 >
-  ↗
+  ⤴
 </a>
 </div>
 
