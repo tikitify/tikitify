@@ -41,27 +41,33 @@ function formatNumber(value: number | null) {
 export default function VideoPage() {
   const params = useParams();
   const id = params.id as string;
+
   const [trend, setTrend] = useState<Trend | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadTrend() {
       const { data, error } = await supabase
-  .from("trends")
-  .select("*")
-  .eq("id", id)
-  .maybeSingle();
+        .from("trends")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
 
       if (error) {
-  console.error(error);
-}
+        console.error(error);
+      }
 
-setTrend(data || null);
-setLoading(false);
+      setTrend(data || null);
+      setLoading(false);
     }
 
     loadTrend();
- }, [id]);
+  }, [id]);
+
+  async function copyHashtags(hashtags: string) {
+    await navigator.clipboard.writeText(hashtags || "");
+    alert("Hashtags copied!");
+  }
 
   if (loading) {
     return (
@@ -75,7 +81,11 @@ setLoading(false);
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-4 text-center text-white">
         <h1 className="text-2xl font-bold">Video not found</h1>
-        <Link href="/" className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">
+
+        <Link
+          href="/"
+          className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black"
+        >
           Back to Tikitify
         </Link>
       </main>
@@ -96,8 +106,8 @@ setLoading(false);
         <div className="w-10" />
       </header>
 
-      <section className="mx-auto max-w-[420px] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
-        <div className="h-[560px] bg-black">
+      <section className="mx-auto max-w-[340px] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
+        <div className="h-[480px] bg-black">
           {embedUrl ? (
             <iframe
               src={embedUrl}
@@ -135,12 +145,19 @@ setLoading(false);
             {trend.hashtags || "No hashtags"}
           </p>
 
+          <button
+            onClick={() => copyHashtags(trend.hashtags)}
+            className="mt-4 w-full rounded-lg bg-white py-2 text-sm font-semibold text-black"
+          >
+            Copy hashtags
+          </button>
+
           {trend.tiktok_url && (
             <a
               href={trend.tiktok_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-4 block rounded-lg border border-zinc-700 py-2 text-center text-sm text-white"
+              className="mt-3 block rounded-lg border border-zinc-700 py-2 text-center text-sm text-white"
             >
               Open on TikTok
             </a>
