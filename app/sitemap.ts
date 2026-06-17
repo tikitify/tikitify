@@ -8,7 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   const { data: trends } = await supabase
-    .from("trend_pool")
+    .from("trends")
     .select("apify_id");
 
   const videoUrls =

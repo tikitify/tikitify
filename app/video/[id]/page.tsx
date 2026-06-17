@@ -24,8 +24,11 @@ type Trend = {
 
 function getTikTokEmbedUrl(url: string | null) {
   if (!url) return null;
+
   const match = url.match(/\/video\/(\d+)/);
+
   if (!match) return null;
+
   return `https://www.tiktok.com/player/v1/${match[1]}`;
 }
 
@@ -45,17 +48,36 @@ export default function VideoPage() {
 
   useEffect(() => {
     async function loadTrend() {
-      const { data, error } = await supabase
+      const possibleIds = [id, `global_${id}`, `spain_${id}`];
+
+      const { data: poolData, error: poolError } = await supabase
         .from("trend_pool")
+        .select("*")
+        .in("apify_id", possibleIds)
+        .limit(1)
+        .maybeSingle();
+
+      if (poolError) {
+        console.error(poolError);
+      }
+
+      if (poolData) {
+        setTrend(poolData);
+        setLoading(false);
+        return;
+      }
+
+      const { data: trendsData, error: trendsError } = await supabase
+        .from("trends")
         .select("*")
         .eq("apify_id", id)
         .maybeSingle();
 
-      if (error) {
-        console.error(error);
+      if (trendsError) {
+        console.error(trendsError);
       }
 
-      setTrend(data || null);
+      setTrend(trendsData || null);
       setLoading(false);
     }
 
