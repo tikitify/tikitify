@@ -19,6 +19,10 @@ type Trend = {
   author_username: string | null;
 };
 
+type PageProps = {
+  params: Promise<{ id: string }>;
+};
+
 function formatNumber(value: number | null) {
   if (!value) return "-";
   if (value >= 1000000) return (value / 1000000).toFixed(1) + "M";
@@ -35,32 +39,39 @@ function getSupabase() {
 
 async function getTrend(id: string): Promise<Trend | null> {
   const supabase = getSupabase();
-  const possibleIds = [id, `global_${id}`, `spain_${id}`];
 
-  const { data: poolData } = await supabase
-    .from("trend_pool")
-    .select("*")
-    .in("apify_id", possibleIds)
-    .limit(1)
-    .maybeSingle();
-
-  if (poolData) return poolData;
-
-  const { data: trendsData } = await supabase
+  const { data: trendsData, error: trendsError } = await supabase
     .from("trends")
     .select("*")
     .eq("apify_id", id)
     .maybeSingle();
 
-  return trendsData || null;
+  if (trendsError) {
+    console.error(trendsError);
+  }
+
+  if (trendsData) return trendsData;
+
+  const possibleIds = [id, `global_${id}`, `spain_${id}`];
+
+  const { data: poolData, error: poolError } = await supabase
+    .from("trend_pool")
+    .select("*")
+    .in("apify_id", possibleIds)
+    .limit(1);
+
+  if (poolError) {
+    console.error(poolError);
+  }
+
+  return poolData?.[0] || null;
 }
 
 export async function generateMetadata({
   params,
-}: {
-  params: { id: string };
-}): Promise<Metadata> {
-  const trend = await getTrend(params.id);
+}: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const trend = await getTrend(id);
 
   if (!trend) {
     return {
@@ -74,7 +85,7 @@ export async function generateMetadata({
   const views = trend.views ? ` with ${formatNumber(trend.views)} views` : "";
   const title = `${rank} | Tikitify`;
   const description = `${rank}${author}${views}. TikTok Trends Today.`;
-  const url = `https://www.tikitify.com/video/${params.id}`;
+  const url = `https://www.tikitify.com/video/${id}`;
   const image = trend.image_url || "/og-image.png";
 
   return {
@@ -107,12 +118,9 @@ export async function generateMetadata({
   };
 }
 
-export default async function VideoPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const trend = await getTrend(params.id);
+export default async function VideoPage({ params }: PageProps) {
+  const { id } = await params;
+  const trend = await getTrend(id);
 
   return <VideoClient trend={trend} />;
 }
