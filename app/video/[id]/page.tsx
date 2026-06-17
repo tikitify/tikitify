@@ -6,28 +6,26 @@ import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
 
 type Trend = {
-  id: number;
-  position: number;
-  market: "global" | "spain";
-  audio: string;
+  id?: number;
+  apify_id: string;
+  position?: number | null;
+  market?: "global" | "spain";
+  audio?: string | null;
   hashtags: string;
-  image_url: string;
-  video_url: string | null;
+  image_url?: string | null;
+  video_url?: string | null;
   views: number | null;
-  likes: number | null;
-  shares: number | null;
-  comments: number | null;
+  likes?: number | null;
+  shares?: number | null;
+  comments?: number | null;
   tiktok_url: string | null;
   author_username: string | null;
 };
 
 function getTikTokEmbedUrl(url: string | null) {
   if (!url) return null;
-
   const match = url.match(/\/video\/(\d+)/);
-
   if (!match) return null;
-
   return `https://www.tiktok.com/player/v1/${match[1]}`;
 }
 
@@ -48,9 +46,9 @@ export default function VideoPage() {
   useEffect(() => {
     async function loadTrend() {
       const { data, error } = await supabase
-        .from("trends")
+        .from("trend_pool")
         .select("*")
-        .eq("id", id)
+        .eq("apify_id", id)
         .maybeSingle();
 
       if (error) {
@@ -130,7 +128,7 @@ export default function VideoPage() {
 
         <div className="p-4">
           <h1 className="text-xl font-bold">
-            #{trend.position}
+            {trend.position ? `#${trend.position}` : "#"}
           </h1>
 
           {trend.author_username && (

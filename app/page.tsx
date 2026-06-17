@@ -7,6 +7,7 @@ type Market = "global" | "spain";
 
 type Trend = {
   id: number;
+  apify_id: string;
   position: number;
   market: Market;
   audio: string;
@@ -23,11 +24,8 @@ type Trend = {
 
 function getTikTokEmbedUrl(url: string | null) {
   if (!url) return null;
-
   const match = url.match(/\/video\/(\d+)/);
-
   if (!match) return null;
-
   return `https://www.tiktok.com/player/v1/${match[1]}`;
 }
 
@@ -78,11 +76,11 @@ export default function Home() {
   }
 
   async function shareTrend(trend: Trend) {
-    const shareUrl = `${window.location.origin}/video/${trend.id}`;
+    const shareUrl = `${window.location.origin}/video/${trend.apify_id}`;
 
     if (navigator.share) {
       await navigator.share({
-        title: `Tikitify | TikTok Trend #${trend.position}`,
+        title: `Tikitify | #${trend.position}`,
         text: "TikTok Trends Today",
         url: shareUrl,
       });
@@ -132,14 +130,14 @@ export default function Home() {
         </div>
 
         <div className="flex justify-center">
-  <a href="/">
-    <img
-      src="/logo.png"
-      alt="Tikitify"
-      className="h-16 w-auto cursor-pointer"
-    />
-  </a>
-</div>
+          <a href="/">
+            <img
+              src="/logo.png"
+              alt="Tikitify"
+              className="h-16 w-auto cursor-pointer"
+            />
+          </a>
+        </div>
 
         <div className="flex justify-end">
           <div className="rounded-full border border-zinc-800 bg-zinc-950 px-5 py-2 text-sm font-semibold tracking-wide text-white">

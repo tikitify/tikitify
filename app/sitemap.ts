@@ -8,12 +8,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   const { data: trends } = await supabase
-    .from("trends")
-    .select("id");
+    .from("trend_pool")
+    .select("apify_id");
 
   const videoUrls =
     trends?.map((trend) => ({
-      url: `https://www.tikitify.com/video/${trend.id}`,
+      url: `https://www.tikitify.com/video/${trend.apify_id}`,
       lastModified: new Date(),
       changeFrequency: "daily" as const,
       priority: 0.8,
