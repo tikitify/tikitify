@@ -1,9 +1,6 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { supabase } from "../../../lib/supabase";
+import type { Metadata } from "next";
+import { createClient } from "@supabase/supabase-js";
+import VideoClient from "./VideoClient";
 
 type Trend = {
   id?: number;
@@ -22,16 +19,6 @@ type Trend = {
   author_username: string | null;
 };
 
-function getTikTokEmbedUrl(url: string | null) {
-  if (!url) return null;
-
-  const match = url.match(/\/video\/(\d+)/);
-
-  if (!match) return null;
-
-  return `https://www.tiktok.com/player/v1/${match[1]}`;
-}
-
 function formatNumber(value: number | null) {
   if (!value) return "-";
   if (value >= 1000000) return (value / 1000000).toFixed(1) + "M";
@@ -39,153 +26,93 @@ function formatNumber(value: number | null) {
   return value.toString();
 }
 
-export default function VideoPage() {
-  const params = useParams();
-  const id = params.id as string;
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
-  const [trend, setTrend] = useState<Trend | null>(null);
-  const [loading, setLoading] = useState(true);
+async function getTrend(id: string): Promise<Trend | null> {
+  const supabase = getSupabase();
+  const possibleIds = [id, `global_${id}`, `spain_${id}`];
 
-  useEffect(() => {
-    async function loadTrend() {
-      const possibleIds = [id, `global_${id}`, `spain_${id}`];
+  const { data: poolData } = await supabase
+    .from("trend_pool")
+    .select("*")
+    .in("apify_id", possibleIds)
+    .limit(1)
+    .maybeSingle();
 
-      const { data: poolData, error: poolError } = await supabase
-        .from("trend_pool")
-        .select("*")
-        .in("apify_id", possibleIds)
-        .limit(1)
-        .maybeSingle();
+  if (poolData) return poolData;
 
-      if (poolError) {
-        console.error(poolError);
-      }
+  const { data: trendsData } = await supabase
+    .from("trends")
+    .select("*")
+    .eq("apify_id", id)
+    .maybeSingle();
 
-      if (poolData) {
-        setTrend(poolData);
-        setLoading(false);
-        return;
-      }
+  return trendsData || null;
+}
 
-      const { data: trendsData, error: trendsError } = await supabase
-        .from("trends")
-        .select("*")
-        .eq("apify_id", id)
-        .maybeSingle();
-
-      if (trendsError) {
-        console.error(trendsError);
-      }
-
-      setTrend(trendsData || null);
-      setLoading(false);
-    }
-
-    loadTrend();
-  }, [id]);
-
-  async function copyHashtags(hashtags: string) {
-    await navigator.clipboard.writeText(hashtags || "");
-    alert("Hashtags copied!");
-  }
-
-  if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-black text-white">
-        Loading video...
-      </main>
-    );
-  }
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
+  const trend = await getTrend(params.id);
 
   if (!trend) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-4 text-center text-white">
-        <h1 className="text-2xl font-bold">Video not found</h1>
-
-        <Link
-          href="/"
-          className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black"
-        >
-          Back to Tikitify
-        </Link>
-      </main>
-    );
+    return {
+      title: "Video not found | Tikitify",
+      description: "This Tikitify video could not be found.",
+    };
   }
 
-  const embedUrl = getTikTokEmbedUrl(trend.tiktok_url);
+  const rank = trend.position ? `#${trend.position}` : "TikTok Trend";
+  const author = trend.author_username ? ` by @${trend.author_username}` : "";
+  const views = trend.views ? ` with ${formatNumber(trend.views)} views` : "";
+  const title = `${rank} | Tikitify`;
+  const description = `${rank}${author}${views}. TikTok Trends Today.`;
+  const url = `https://www.tikitify.com/video/${params.id}`;
+  const image = trend.image_url || "/og-image.png";
 
-  return (
-    <main className="min-h-screen bg-black px-4 py-4 text-white">
-      <header className="mb-4 flex items-center justify-between">
-        <Link href="/" className="text-sm text-zinc-400">
-          ← Back
-        </Link>
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: url,
+    },
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: "Tikitify",
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
+  };
+}
 
-        <a href="/">
-          <img
-            src="/logo.png"
-            alt="Tikitify"
-            className="h-12 w-auto cursor-pointer"
-          />
-        </a>
+export default async function VideoPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const trend = await getTrend(params.id);
 
-        <div className="w-9" />
-      </header>
-
-      <section className="mx-auto max-w-[320px] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
-        <div className="h-[380px] bg-black">
-          {embedUrl ? (
-            <iframe
-              src={embedUrl}
-              allow="autoplay; encrypted-media; fullscreen"
-              allowFullScreen
-              className="h-full w-full border-0"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-sm text-zinc-500">
-              Video unavailable
-            </div>
-          )}
-        </div>
-
-        <div className="p-4">
-          <h1 className="text-xl font-bold">
-            {trend.position ? `#${trend.position}` : "#"}
-          </h1>
-
-          {trend.author_username && (
-            <p className="mt-2 text-sm text-zinc-300">
-              @{trend.author_username}
-            </p>
-          )}
-
-          <div className="mt-3 text-sm font-medium text-zinc-300">
-            👁 {formatNumber(trend.views)} views
-          </div>
-
-          <p className="mt-3 text-sm leading-relaxed text-zinc-500">
-            {trend.hashtags || "No hashtags"}
-          </p>
-
-          <button
-            onClick={() => copyHashtags(trend.hashtags)}
-            className="mt-4 w-full rounded-lg bg-white py-2 text-sm font-semibold text-black"
-          >
-            Copy hashtags
-          </button>
-
-          {trend.tiktok_url && (
-            <a
-              href={trend.tiktok_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 block rounded-lg border border-zinc-700 py-2 text-center text-sm text-white"
-            >
-              Open on TikTok
-            </a>
-          )}
-        </div>
-      </section>
-    </main>
-  );
+  return <VideoClient trend={trend} />;
 }
