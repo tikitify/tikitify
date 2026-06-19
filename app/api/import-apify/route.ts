@@ -293,6 +293,14 @@ function selectTopVideos(
 async function updateTrendHistory(trends: any[]) {
   if (trends.length === 0) return;
 
+  await supabase
+    .from("trend_history")
+    .delete()
+    .lt(
+      "last_seen",
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    );
+    
   const { data: existingHistory, error: historyError } = await supabase
     .from("trend_history")
     .select("apify_id, market, first_seen, last_seen, times_seen");
