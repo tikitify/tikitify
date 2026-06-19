@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import { getTikTokEmbedUrl } from "../../../lib/tiktok";
 
 type Trend = {
   id?: number;
@@ -18,16 +20,6 @@ type Trend = {
   tiktok_url: string | null;
   author_username: string | null;
 };
-
-function getTikTokEmbedUrl(url: string | null) {
-  if (!url) return null;
-
-  const match = url.match(/\/video\/(\d+)/);
-
-  if (!match) return null;
-
-  return `https://www.tiktok.com/player/v1/${match[1]}`;
-}
 
 function formatNumber(value: number | null) {
   if (!value) return "-";
@@ -66,13 +58,16 @@ export default function VideoClient({ trend }: { trend: Trend | null }) {
           ← Back
         </Link>
 
-        <a href="/">
-          <img
+        <Link href="/">
+          <Image
             src="/logo.png"
             alt="Tikitify"
+            width={120}
+            height={60}
+            priority
             className="h-12 w-auto cursor-pointer"
           />
-        </a>
+        </Link>
 
         <div className="w-9" />
       </header>

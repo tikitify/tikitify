@@ -23,6 +23,10 @@ export async function generateMetadata({
   return {
     title: `${displayTag} TikTok Videos Today | Tikitify`,
     description: `Discover viral TikTok videos using ${displayTag}, updated automatically on Tikitify.`,
+    robots: {
+      index: false,
+      follow: true,
+    },
     alternates: {
       canonical: `/hashtag/${getHashtagSlug(tag)}`,
     },

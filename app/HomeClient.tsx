@@ -5,17 +5,10 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import {
   extractHashtagNames,
-  getHashtagHref,
   type Market,
   type Trend,
 } from "../lib/hashtags";
-
-function getTikTokEmbedUrl(url: string | null) {
-  if (!url) return null;
-  const match = url.match(/\/video\/(\d+)/);
-  if (!match) return null;
-  return `https://www.tiktok.com/player/v1/${match[1]}`;
-}
+import { getTikTokEmbedUrl } from "../lib/tiktok";
 
 function formatDateTime(date: Date) {
   const day = date.toLocaleDateString("es-ES", {
@@ -246,13 +239,7 @@ export default function HomeClient({
                 <div className="mt-2 flex min-h-[34px] flex-wrap content-start gap-x-1.5 gap-y-0.5 overflow-hidden text-[11px] leading-snug text-zinc-500">
                   {hashtagNames.length > 0
                     ? hashtagNames.map((tag) => (
-                        <Link
-                          key={tag}
-                          href={getHashtagHref(tag)}
-                          className="transition hover:text-white"
-                        >
-                          #{tag}
-                        </Link>
+                        <span key={tag}>#{tag}</span>
                       ))
                     : "No hashtags"}
                 </div>
