@@ -1,6 +1,8 @@
 import { MetadataRoute } from "next";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,6 +30,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     {
       url: "https://www.tikitify.com/espana",
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.9,
+    },
+    {
+      url: "https://www.tikitify.com/trending-global",
       lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.9,

@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { createClient } from "@supabase/supabase-js";
-import HomeClient, { type Trend } from "./HomeClient";
+import HomeClient, { type Trend } from "../HomeClient";
 
 export const metadata: Metadata = {
-  title: "TikTok Trends Spain Today | Tikitify",
+  title: "Global TikTok Trends Today | Tikitify",
   description:
-    "Discover today's viral TikTok trends in Spain, updated automatically.",
+    "Discover today's viral TikTok trends worldwide, updated automatically.",
   alternates: {
-    canonical: "/",
+    canonical: "/trending-global",
   },
 };
 
@@ -22,7 +22,7 @@ async function getTrends(): Promise<Trend[]> {
   const { data, error } = await supabase
     .from("trends")
     .select("*")
-    .eq("market", "spain")
+    .eq("market", "global")
     .order("position", { ascending: true });
 
   if (error) {
@@ -33,8 +33,8 @@ async function getTrends(): Promise<Trend[]> {
   return data || [];
 }
 
-export default async function Home() {
+export default async function TrendingGlobalPage() {
   const trends = await getTrends();
 
-  return <HomeClient initialMarket="spain" initialTrends={trends} />;
+  return <HomeClient initialMarket="global" initialTrends={trends} />;
 }
