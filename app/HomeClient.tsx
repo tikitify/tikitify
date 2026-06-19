@@ -3,25 +3,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-
-export type Market = "global" | "spain";
-
-export type Trend = {
-  id?: number;
-  apify_id: string;
-  position: number;
-  market: Market;
-  audio: string | null;
-  hashtags: string | null;
-  image_url: string | null;
-  video_url: string | null;
-  views: number | null;
-  likes: number | null;
-  shares: number | null;
-  comments: number | null;
-  tiktok_url: string | null;
-  author_username: string | null;
-};
+import {
+  extractHashtagNames,
+  getHashtagHref,
+  type Market,
+  type Trend,
+} from "../lib/hashtags";
 
 function getTikTokEmbedUrl(url: string | null) {
   if (!url) return null;
@@ -87,9 +74,11 @@ function ShareIcon() {
 export default function HomeClient({
   initialMarket,
   initialTrends,
+  pageTitle,
 }: {
-  initialMarket: Market;
+  initialMarket?: Market;
   initialTrends: Trend[];
+  pageTitle?: string;
 }) {
   const [now, setNow] = useState(new Date());
 
@@ -177,14 +166,30 @@ export default function HomeClient({
       </header>
 
       <h1 className="sr-only">
-        {initialMarket === "spain"
-          ? "TikTok trends in Spain today"
-          : "Global TikTok trends today"}
+        {pageTitle ||
+          (initialMarket === "spain"
+            ? "TikTok trends in Spain today"
+            : "Global TikTok trends today")}
       </h1>
 
+      {pageTitle && (
+        <div className="mb-3 flex justify-center">
+          <div className="rounded-full border border-zinc-800 bg-zinc-950 px-4 py-1.5 text-sm font-semibold text-zinc-200">
+            {pageTitle}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-4 overflow-x-auto pb-3">
+        {initialTrends.length === 0 && (
+          <div className="flex min-h-[420px] w-full items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950 text-sm text-zinc-500">
+            No videos found yet.
+          </div>
+        )}
+
         {initialTrends.map((trend) => {
           const embedUrl = getTikTokEmbedUrl(trend.tiktok_url);
+          const hashtagNames = extractHashtagNames(trend.hashtags);
 
           return (
             <article
@@ -238,9 +243,19 @@ export default function HomeClient({
                   {formatNumber(trend.views)}
                 </div>
 
-                <p className="mt-2 min-h-[34px] line-clamp-2 text-[11px] leading-snug text-zinc-500">
-                  {trend.hashtags || "No hashtags"}
-                </p>
+                <div className="mt-2 flex min-h-[34px] flex-wrap content-start gap-x-1.5 gap-y-0.5 overflow-hidden text-[11px] leading-snug text-zinc-500">
+                  {hashtagNames.length > 0
+                    ? hashtagNames.map((tag) => (
+                        <Link
+                          key={tag}
+                          href={getHashtagHref(tag)}
+                          className="transition hover:text-white"
+                        >
+                          #{tag}
+                        </Link>
+                      ))
+                    : "No hashtags"}
+                </div>
 
                 <div className="mt-2">
                   <button

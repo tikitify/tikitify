@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { createClient } from "@supabase/supabase-js";
-import HomeClient, { type Trend } from "./HomeClient";
+import HomeClient from "./HomeClient";
+import { getTrendsByMarket } from "../lib/trends";
 
 export const metadata: Metadata = {
   title: "TikTok Trends Spain Today | Tikitify",
@@ -13,28 +13,8 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-async function getTrends(): Promise<Trend[]> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
-  const { data, error } = await supabase
-    .from("trends")
-    .select("*")
-    .eq("market", "spain")
-    .order("position", { ascending: true });
-
-  if (error) {
-    console.error(error.message);
-    return [];
-  }
-
-  return data || [];
-}
-
 export default async function Home() {
-  const trends = await getTrends();
+  const trends = await getTrendsByMarket("spain");
 
   return <HomeClient initialMarket="spain" initialTrends={trends} />;
 }
