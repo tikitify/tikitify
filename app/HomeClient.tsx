@@ -26,6 +26,25 @@ function formatNumber(value: number | null) {
   return value.toString();
 }
 
+function getRankBadgeClass(position: number) {
+  const baseClass =
+    "flex h-9 w-9 items-center justify-center rounded-full text-base font-black leading-none shadow-sm";
+
+  if (position === 1) {
+    return `${baseClass} bg-[#d4af37] text-black shadow-[#d4af37]/30`;
+  }
+
+  if (position === 2) {
+    return `${baseClass} bg-[#c0c0c0] text-black shadow-[#c0c0c0]/25`;
+  }
+
+  if (position === 3) {
+    return `${baseClass} bg-[#b87333] text-white shadow-[#b87333]/25`;
+  }
+
+  return "text-base font-bold leading-none";
+}
+
 function EyeIcon() {
   return (
     <svg
@@ -208,7 +227,7 @@ export default function HomeClient({
                 <div className="flex items-center justify-between">
                   <Link
                     href={`/video/${trend.apify_id}`}
-                    className="text-base font-bold leading-none"
+                    className={getRankBadgeClass(trend.position)}
                   >
                     #{trend.position}
                   </Link>
