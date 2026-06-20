@@ -28,7 +28,7 @@ function formatNumber(value: number | null) {
 
 function getRankBadgeClass(position: number) {
   const baseClass =
-    "flex h-11 w-11 items-center justify-center rounded-full border text-base font-black leading-none shadow-lg transition";
+    "flex h-7 w-7 items-center justify-center rounded-full border text-base font-black leading-none shadow-lg transition";
 
   if (position === 1) {
     return `${baseClass} border-yellow-200 bg-gradient-to-br from-yellow-200 via-yellow-400 to-yellow-700 text-black shadow-yellow-500/40`;
