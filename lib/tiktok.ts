@@ -9,5 +9,5 @@ export function getTikTokEmbedUrl(url: string | null) {
   const videoId = getTikTokVideoId(url);
   if (!videoId) return null;
 
-  return `https://www.tiktok.com/embed/v2/${videoId}`;
+  return `https://www.tiktok.com/player/v1/${videoId}`;
 }
