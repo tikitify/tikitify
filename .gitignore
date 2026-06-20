@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/.npm-cache
 /.pnp
 .pnp.*
 .yarn/*
@@ -43,3 +44,9 @@ next-env.d.ts
 .vercel
 
 creative-test/
+
+# generated social video assets
+/public/generated/videos/*
+!/public/generated/videos/.gitkeep
+/public/generated/music/*
+!/public/generated/music/.gitkeep

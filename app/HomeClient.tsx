@@ -28,22 +28,23 @@ function formatNumber(value: number | null) {
 
 function getRankBadgeClass(position: number) {
   const baseClass =
-    "flex h-9 w-9 items-center justify-center rounded-full text-base font-black leading-none shadow-sm";
+    "flex h-11 w-11 items-center justify-center rounded-full border text-base font-black leading-none shadow-lg transition";
 
   if (position === 1) {
-    return `${baseClass} bg-[#d4af37] text-black shadow-[#d4af37]/30`;
+    return `${baseClass} border-yellow-200 bg-gradient-to-br from-yellow-200 via-yellow-400 to-yellow-700 text-black shadow-yellow-500/40`;
   }
 
   if (position === 2) {
-    return `${baseClass} bg-[#c0c0c0] text-black shadow-[#c0c0c0]/25`;
+    return `${baseClass} border-zinc-100 bg-gradient-to-br from-zinc-100 via-zinc-300 to-zinc-500 text-black shadow-zinc-300/30`;
   }
 
   if (position === 3) {
-    return `${baseClass} bg-[#b87333] text-white shadow-[#b87333]/25`;
+    return `${baseClass} border-orange-200 bg-gradient-to-br from-orange-300 via-orange-500 to-amber-800 text-white shadow-orange-500/30`;
   }
 
   return "text-base font-bold leading-none";
 }
+
 
 function EyeIcon() {
   return (
@@ -228,6 +229,7 @@ export default function HomeClient({
                   <Link
                     href={`/video/${trend.apify_id}`}
                     className={getRankBadgeClass(trend.position)}
+aria-label={`Trend position ${trend.position}`}
                   >
                     #{trend.position}
                   </Link>
