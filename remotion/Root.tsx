@@ -32,7 +32,6 @@ export const TikitifyRoot = () => {
         storyAngleTopic: "vídeos virales",
         storyAngleAction: "un clip corto que engancha desde el primer segundo",
         backgroundVideoSrc: "generated/videos/background-source.mp4",
-        voiceoverSrc: "generated/videos/top-viral-story-voiceover.mp3",
         outroAudioSrc: "audio.mp3",
         captions: [
           { startFrame: 0, endFrame: 130, text: "Este vídeo está arrasando en TikTok." },

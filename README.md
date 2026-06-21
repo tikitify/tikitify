@@ -6,7 +6,7 @@ Discover the latest viral TikTok trends in one place.
 
 Tikitify can generate one vertical viral storytelling video for TikTok and Instagram Reels:
 
-- `top-viral-story.mp4`
+- `top1.mp4`, then `top2.mp4`, `top3.mp4`, etc.
 
 The generator first checks each candidate trend for a downloadable direct MP4 in `video_url`. If the first one fails, it skips to the next trend until it finds one that can actually be downloaded. It does not use the TikTok embed as the background video source.
 
@@ -23,15 +23,9 @@ Optional settings:
 
 ```bash
 TIKITIFY_VIDEO_MARKET=global # global or spain
-TIKITIFY_TTS_PROVIDER=elevenlabs # elevenlabs, openai, windows-sapi, or none
-ELEVENLABS_API_KEY=
-ELEVENLABS_VOICE_ID=
-OPENAI_API_KEY=
-OPENAI_TTS_MODEL=gpt-4o-mini-tts
-OPENAI_TTS_VOICE=alloy
 ```
 
-If `ELEVENLABS_API_KEY` is present, the generator will use ElevenLabs first. If not, it falls back to OpenAI when available, and then to the Windows system voice on this machine.
+The generator does not create narration audio. It renders the story as burned-in Spanish subtitles over the video.
 
 ### Background music
 

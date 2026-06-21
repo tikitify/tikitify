@@ -1,4 +1,4 @@
-﻿export type TrendCandidate = {
+export type TrendCandidate = {
   apify_id: string;
   position: number;
   market: "global" | "spain";
@@ -60,8 +60,8 @@ export type SocialVideoProps = {
   scenes: SocialScene[];
   scriptLines: string[];
   featuredTrend?: SocialTrend | null;
-  trends: SocialTrend[];
   voiceoverSrc?: string | null;
+  trends: SocialTrend[];
   backgroundMusicSrc?: string | null;
 };
 
@@ -70,7 +70,6 @@ export type TopViralStoryProps = {
   storyAngleTopic: string;
   storyAngleAction: string;
   backgroundVideoSrc: string;
-  voiceoverSrc: string;
   outroAudioSrc: string;
   captions: CaptionCue[];
   storyDurationInFrames: number;

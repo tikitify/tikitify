@@ -154,12 +154,11 @@ function StoryScene({
   storyAngleTopic,
   storyAngleAction,
   backgroundVideoSrc,
-  voiceoverSrc,
   captions,
   storyDurationInFrames,
 }: Pick<
   TopViralStoryProps,
-  "trend" | "storyAngleTopic" | "storyAngleAction" | "backgroundVideoSrc" | "voiceoverSrc" | "captions" | "storyDurationInFrames"
+  "trend" | "storyAngleTopic" | "storyAngleAction" | "backgroundVideoSrc" | "captions" | "storyDurationInFrames"
 >) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -206,22 +205,7 @@ function StoryScene({
           transform: `translateY(${interpolate(titleProgress, [0, 1], [14, 0])}px)`,
         }}
       >
-        historia viral
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          left: 56,
-          right: 120,
-          top: 126,
-          color: colors.text,
-          fontSize: 84,
-          lineHeight: 0.96,
-          fontWeight: 950,
-          textShadow: "0 4px 30px rgba(0,0,0,0.85)",
-        }}
-      >
-        Lo que está pasando ahora
+        Top viral
       </div>
       <div
         style={{
@@ -230,7 +214,7 @@ function StoryScene({
           top: 334,
           maxWidth: 720,
           color: colors.muted,
-          fontSize: 68,
+          fontSize: 34,
           lineHeight: 1.18,
           fontWeight: 650,
           textShadow: "0 2px 16px rgba(0,0,0,0.8)",
@@ -266,9 +250,8 @@ function StoryScene({
           textShadow: "0 2px 16px rgba(0,0,0,0.8)",
         }}
       >
-        {`Un vídeo de ${storyAngleTopic} que no deja de crecer.`}
+        {`Un video de ${storyAngleTopic} que no deja de crecer.`}
       </div>
-      <Audio src={staticFile(voiceoverSrc)} volume={1} />
       <CaptionLayer cues={captions} storyDurationInFrames={storyDurationInFrames} />
 
       <Watermark />
@@ -325,7 +308,6 @@ export function TopViralStory(props: TopViralStoryProps) {
           storyAngleTopic={props.storyAngleTopic}
           storyAngleAction={props.storyAngleAction}
           backgroundVideoSrc={props.backgroundVideoSrc}
-          voiceoverSrc={props.voiceoverSrc}
           captions={props.captions}
           storyDurationInFrames={props.storyDurationInFrames}
         />
