@@ -27,6 +27,16 @@ TIKITIFY_VIDEO_MARKET=global # global or spain
 
 The generator does not create narration audio. It renders the story as burned-in Spanish subtitles over the video.
 
+For visual script generation, install Ollama locally and pull Qwen2.5-VL or another vision model:
+
+```bash
+ollama pull qwen2.5vl:latest
+```
+
+The generator extracts 4 frames distributed across the video, resized to a maximum of 500px, sends them to Ollama, logs the detailed `visualSummary`, and then writes the subtitles from that visual analysis. Hashtags and metadata are only used as support when visual confidence is low. If the 4-frame Ollama request fails, the generator retries once with 2 frames before aborting.
+
+If Ollama is not running or the configured vision model is unavailable, the generator stops and prints the Ollama error instead of falling back silently.
+
 ### Background music
 
 The current format does not require extra background music. If you later want to add it, keep the file here:
@@ -47,11 +57,6 @@ Generated files are saved here:
 public/generated/videos/
 ```
 
-Audio files are saved next to the videos:
-
-```text
-public/generated/videos/top-viral-story.mp3
-```
 
 ### Background video source
 

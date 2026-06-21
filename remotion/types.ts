@@ -9,6 +9,9 @@ export type TrendCandidate = {
   video_url: string | null;
   views: number | null;
   likes: number | null;
+  shares?: number | null;
+  comments?: number | null;
+  description?: string | null;
   tiktok_url: string | null;
   author_username: string | null;
 };
@@ -70,6 +73,7 @@ export type TopViralStoryProps = {
   storyAngleTopic: string;
   storyAngleAction: string;
   backgroundVideoSrc: string;
+  backgroundVideoDurationInFrames: number;
   outroAudioSrc: string;
   captions: CaptionCue[];
   storyDurationInFrames: number;

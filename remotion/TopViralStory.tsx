@@ -2,6 +2,7 @@ import {
   AbsoluteFill,
   Audio,
   Img,
+  Loop,
   OffthreadVideo,
   Sequence,
   interpolate,
@@ -21,13 +22,6 @@ const colors = {
   line: "rgba(255,255,255,0.16)",
 };
 
-function compactNumber(value?: number | null) {
-  if (!value) return "-";
-  if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
-  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-  return String(value);
-}
 
 function safeText(value: string, max = 90) {
   if (value.length <= max) return value;
@@ -150,18 +144,17 @@ function Watermark() {
   );
 }
 function StoryScene({
-  trend,
-  storyAngleTopic,
-  storyAngleAction,
   backgroundVideoSrc,
+  backgroundVideoDurationInFrames,
   captions,
   storyDurationInFrames,
 }: Pick<
   TopViralStoryProps,
-  "trend" | "storyAngleTopic" | "storyAngleAction" | "backgroundVideoSrc" | "captions" | "storyDurationInFrames"
+  "backgroundVideoSrc" | "backgroundVideoDurationInFrames" | "captions" | "storyDurationInFrames"
 >) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const loopDurationInFrames = Math.max(1, backgroundVideoDurationInFrames - 2);
   const bgScale = interpolate(frame, [0, storyDurationInFrames], [1.02, 1.08]);
   const drift = Math.sin(frame / 22) * 10;
   const titleProgress = spring({
@@ -172,18 +165,20 @@ function StoryScene({
 
   return (
     <>
-      <OffthreadVideo
-        src={staticFile(backgroundVideoSrc)}
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          transform: `scale(${bgScale}) translateY(${drift}px)`,
-        }}
-        muted
-      />
+      <Loop durationInFrames={loopDurationInFrames}>
+        <OffthreadVideo
+          src={staticFile(backgroundVideoSrc)}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: `scale(${bgScale}) translateY(${drift}px)`,
+          }}
+          muted
+        />
+      </Loop>
       <div
         style={{
           position: "absolute",
@@ -206,51 +201,6 @@ function StoryScene({
         }}
       >
         Top viral
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          left: 58,
-          top: 334,
-          maxWidth: 720,
-          color: colors.muted,
-          fontSize: 34,
-          lineHeight: 1.18,
-          fontWeight: 650,
-          textShadow: "0 2px 16px rgba(0,0,0,0.8)",
-        }}
-      >
-        {`Se ve ${storyAngleAction}.`}
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          left: 58,
-          bottom: 148,
-          color: colors.text,
-          fontSize: 48,
-          lineHeight: 1.04,
-          fontWeight: 900,
-          maxWidth: 760,
-          textShadow: "0 4px 18px rgba(0,0,0,0.9)",
-        }}
-      >
-        {trend.views ? `${compactNumber(trend.views)} visualizaciones y subiendo.` : "La cosa no para."}
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          left: 58,
-          top: 388,
-          maxWidth: 720,
-          color: colors.muted,
-          fontSize: 32,
-          lineHeight: 1.18,
-          fontWeight: 600,
-          textShadow: "0 2px 16px rgba(0,0,0,0.8)",
-        }}
-      >
-        {`Un video de ${storyAngleTopic} que no deja de crecer.`}
       </div>
       <CaptionLayer cues={captions} storyDurationInFrames={storyDurationInFrames} />
 
@@ -304,10 +254,8 @@ export function TopViralStory(props: TopViralStoryProps) {
     <AbsoluteFill style={{ backgroundColor: colors.bg }}>
       {frame < props.storyDurationInFrames ? (
         <StoryScene
-          trend={props.trend}
-          storyAngleTopic={props.storyAngleTopic}
-          storyAngleAction={props.storyAngleAction}
           backgroundVideoSrc={props.backgroundVideoSrc}
+          backgroundVideoDurationInFrames={props.backgroundVideoDurationInFrames}
           captions={props.captions}
           storyDurationInFrames={props.storyDurationInFrames}
         />
