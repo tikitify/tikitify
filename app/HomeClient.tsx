@@ -257,13 +257,13 @@ aria-label={`Trend position ${trend.position}`}
                   {formatNumber(trend.views)}
                 </div>
 
-                <div className="mt-2 flex min-h-[34px] flex-wrap content-start gap-x-1.5 gap-y-0.5 overflow-hidden text-[11px] leading-snug text-zinc-500">
-                  {hashtagNames.length > 0
-                    ? hashtagNames.map((tag) => (
-                        <span key={tag}>#{tag}</span>
-                      ))
-                    : "No hashtags"}
-                </div>
+                <div className="mt-2 h-[52px] overflow-hidden text-[11px] leading-snug text-zinc-500">
+  {hashtagNames.length > 0
+    ? hashtagNames.map((tag) => (
+        <span key={tag}>#{tag} </span>
+      ))
+    : "No hashtags"}
+</div>
 
                 <div className="mt-2">
                   <button
