@@ -30,21 +30,132 @@ function getRankBadgeClass(position: number) {
   const baseClass =
     "flex h-7 w-7 items-center justify-center rounded-full border text-base font-black leading-none shadow-lg transition";
 
-  if (position === 1) {
-    return `${baseClass} border-yellow-200 bg-gradient-to-br from-yellow-200 via-yellow-400 to-yellow-700 text-black shadow-yellow-500/40`;
-  }
+if (position === 1) {
+  return `${baseClass} border-[#C9A227] bg-[#C9A227] text-black`;
+}
 
-  if (position === 2) {
-    return `${baseClass} border-zinc-100 bg-gradient-to-br from-zinc-100 via-zinc-300 to-zinc-500 text-black shadow-zinc-300/30`;
-  }
+if (position === 2) {
+  return `${baseClass} border-[#C0C0C0] bg-[#C0C0C0] text-black`;
+}
 
-  if (position === 3) {
-    return `${baseClass} border-orange-200 bg-gradient-to-br from-orange-300 via-orange-500 to-amber-800 text-white shadow-orange-500/30`;
-  }
+if (position === 3) {
+  return `${baseClass} border-[#B87333] bg-[#B87333] text-white`;
+}
 
   return "text-base font-bold leading-none";
 }
 
+function RevealTopCover({ rank }: { rank: number }) {
+  const [revealed, setRevealed] = useState(false);
+  const [dissolving, setDissolving] = useState(false);
+
+  const color =
+    rank === 1 ? "#C9A227" : rank === 2 ? "#C0C0C0" : "#B87333";
+
+  function handleClick() {
+    setDissolving(true);
+
+    setTimeout(() => {
+      setRevealed(true);
+    }, 900);
+  }
+
+  if (revealed) return null;
+
+  return (
+    <>
+      <style jsx>{`
+        @keyframes tap {
+          0% {
+            transform: translateY(0) scale(1);
+            opacity: 0;
+          }
+
+          15% {
+            opacity: 1;
+          }
+
+          40% {
+            transform: translateY(10px) scale(0.9);
+          }
+
+          60% {
+            transform: translateY(0) scale(1);
+          }
+
+          85% {
+            opacity: 1;
+          }
+
+          100% {
+            opacity: 0;
+          }
+        }
+
+        @keyframes pulseTap {
+          0% {
+            transform: scale(0.5);
+            opacity: 0;
+          }
+
+          30% {
+            opacity: 1;
+          }
+
+          100% {
+            transform: scale(2);
+            opacity: 0;
+          }
+        }
+
+        .animate-tap {
+          animation: tap 2.5s infinite;
+        }
+
+        .tap-indicator {
+          position: absolute;
+          bottom: 95px;
+          width: 60px;
+          height: 60px;
+          border: 2px solid currentColor;
+          border-radius: 9999px;
+          animation: pulseTap 2.5s infinite;
+        }
+      `}</style>
+
+      <button
+        type="button"
+        onClick={handleClick}
+        style={{
+          boxShadow: `inset 0 0 0 3px ${color}`,
+        }}
+        className={`absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-black transition-all duration-700 ${
+          dissolving
+            ? "opacity-0 blur-xl scale-110"
+            : "opacity-100 blur-0 scale-100"
+        }`}
+      >
+        <div
+          className="text-3xl font-black uppercase tracking-widest"
+          style={{ color }}
+        >
+          Top #{rank}
+        </div>
+
+        <div className="tap-indicator" style={{ color }} />
+
+        <div
+          className="absolute bottom-20 animate-tap text-6xl"
+          style={{
+            filter: "grayscale(1) brightness(5)",
+          }}
+        >
+          👆
+        </div>
+      </button>
+    </>
+  );
+}
 
 function EyeIcon() {
   return (
@@ -125,9 +236,11 @@ export default function HomeClient({
   }
 
   const dateTime = formatDateTime(now);
-const uniqueTrends = Array.from(
-  new Map(initialTrends.map((trend) => [trend.apify_id, trend])).values()
-);
+
+  const uniqueTrends = Array.from(
+    new Map(initialTrends.map((trend) => [trend.apify_id, trend])).values()
+  );
+
   return (
     <main className="min-h-screen bg-black px-3 py-3 text-white">
       <header className="mb-3 grid grid-cols-3 items-center">
@@ -209,8 +322,12 @@ const uniqueTrends = Array.from(
           return (
             <article
               key={trend.id || trend.apify_id}
-              className="flex min-w-[280px] max-w-[280px] flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950"
+              className="relative flex min-w-[280px] max-w-[280px] flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950"
             >
+              {trend.position <= 3 && (
+                <RevealTopCover rank={trend.position} />
+              )}
+
               <div className="h-[370px] bg-black">
                 {embedUrl ? (
                   <iframe
@@ -231,7 +348,7 @@ const uniqueTrends = Array.from(
                   <Link
                     href={`/video/${trend.apify_id}`}
                     className={getRankBadgeClass(trend.position)}
-aria-label={`Trend position ${trend.position}`}
+                    aria-label={`Trend position ${trend.position}`}
                   >
                     #{trend.position}
                   </Link>
@@ -260,12 +377,12 @@ aria-label={`Trend position ${trend.position}`}
                 </div>
 
                 <div className="mt-2 h-[52px] overflow-hidden text-[11px] leading-snug text-zinc-500">
-  {hashtagNames.length > 0
-    ? hashtagNames.map((tag) => (
-        <span key={tag}>#{tag} </span>
-      ))
-    : "No hashtags"}
-</div>
+                  {hashtagNames.length > 0
+                    ? hashtagNames.map((tag) => (
+                        <span key={tag}>#{tag} </span>
+                      ))
+                    : "No hashtags"}
+                </div>
 
                 <div className="mt-2">
                   <button
