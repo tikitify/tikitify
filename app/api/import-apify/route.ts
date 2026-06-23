@@ -207,30 +207,22 @@ function applySmartRotation(
       const hoursSinceLastSeen = getHoursSince(history?.lastSeen || null);
 
       const activeDaysSeen =
-  hoursSinceLastSeen <= HISTORY_RESET_HOURS
-    ? getFullDaysSince(history?.firstSeen || null)
-    : 0;
+        hoursSinceLastSeen <= HISTORY_RESET_HOURS
+          ? getFullDaysSince(history?.firstSeen || null)
+          : 0;
 
-const hoursInRanking =
-  hoursSinceLastSeen <= HISTORY_RESET_HOURS
-    ? getHoursSince(history?.firstSeen || null)
-    : 0;
+      let demotionMultiplier = 0;
 
-let demotionSlots = 0;
+      if (index <= 2) {
+        demotionMultiplier = 5;
+      } else if (index <= 5) {
+        demotionMultiplier = 3;
+      }
 
-if (index <= 2) {
-  // Top 1-3: after 48h, push them down around positions 6-8
-  if (hoursInRanking >= 48) {
-    demotionSlots = 5;
-  } else if (hoursInRanking >= 24) {
-    demotionSlots = 3;
-  }
-} else if (index <= 5) {
-  // Top 4-6: lighter rotation
-  if (activeDaysSeen >= 2) {
-    demotionSlots = 2;
-  }
-}
+      const demotionSlots = Math.min(
+        activeDaysSeen * demotionMultiplier,
+        30
+      );
 
       return {
         ...row,
