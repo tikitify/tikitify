@@ -152,8 +152,8 @@ function RevealTopCover({ rank }: { rank: number }) {
         }}
         className={`absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-black transition-all duration-700 ${
           dissolving
-            ? "opacity-0 blur-xl scale-110"
-            : "opacity-100 blur-0 scale-100"
+  ? "opacity-0 blur-[14px] scale-[1.08]"
+  : "opacity-100 blur-0 scale-100"
         }`}
       >
         <div
