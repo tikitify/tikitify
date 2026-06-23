@@ -410,7 +410,7 @@ export default function HomeClient({
                 <RevealTopCover rank={trend.position} />
               )}
 
-              <div className="h-[370px] bg-black">
+              <div className="h-[330px] bg-black">
                 {embedUrl ? (
                   <iframe
                     src={embedUrl}
@@ -425,7 +425,7 @@ export default function HomeClient({
                 )}
               </div>
 
-              <div className="flex min-h-[210px] flex-1 flex-col p-3">
+              <div className="flex min-h-[180px] flex-1 flex-col p-3">
                 <div className="flex items-center justify-between">
                   <Link
                     href={`/video/${trend.apify_id}`}
