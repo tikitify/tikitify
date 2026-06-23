@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   extractHashtagNames,
   type Market,
@@ -30,17 +30,17 @@ function getRankBadgeClass(position: number) {
   const baseClass =
     "flex h-7 w-7 items-center justify-center rounded-full border text-base font-black leading-none shadow-lg transition";
 
-if (position === 1) {
-  return `${baseClass} border-[#C9A227] bg-[#C9A227] text-black`;
-}
+  if (position === 1) {
+    return `${baseClass} border-[#C9A227] bg-[#C9A227] text-black`;
+  }
 
-if (position === 2) {
-  return `${baseClass} border-[#C0C0C0] bg-[#C0C0C0] text-black`;
-}
+  if (position === 2) {
+    return `${baseClass} border-[#C0C0C0] bg-[#C0C0C0] text-black`;
+  }
 
-if (position === 3) {
-  return `${baseClass} border-[#B87333] bg-[#B87333] text-white`;
-}
+  if (position === 3) {
+    return `${baseClass} border-[#B87333] bg-[#B87333] text-white`;
+  }
 
   return "text-base font-bold leading-none";
 }
@@ -150,10 +150,10 @@ function RevealTopCover({ rank }: { rank: number }) {
         style={{
           boxShadow: `inset 0 0 0 3px ${color}`,
         }}
-        className={`absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-black transition-all duration-700 ${
+        className={`absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-black transition-all duration-[900ms] ${
           dissolving
-  ? "opacity-0 blur-[14px] scale-[1.08]"
-  : "opacity-100 blur-0 scale-100"
+            ? "opacity-0 blur-[14px] scale-[1.08]"
+            : "opacity-100 blur-0 scale-100"
         }`}
       >
         <div
@@ -226,6 +226,10 @@ export default function HomeClient({
   pageTitle?: string;
 }) {
   const [now, setNow] = useState(new Date());
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+  const cardRefs = useRef<(HTMLElement | null)[]>([]);
+  const hasCenteredInitialCard = useRef(false);
+  const [activeIndex, setActiveIndex] = useState(3);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -261,6 +265,56 @@ export default function HomeClient({
   const uniqueTrends = Array.from(
     new Map(initialTrends.map((trend) => [trend.apify_id, trend])).values()
   );
+
+  useEffect(() => {
+    if (hasCenteredInitialCard.current) return;
+    if (uniqueTrends.length < 4) return;
+    if (window.innerWidth >= 640) return;
+
+    hasCenteredInitialCard.current = true;
+
+    setTimeout(() => {
+      cardRefs.current[3]?.scrollIntoView({
+        behavior: "auto",
+        inline: "center",
+        block: "nearest",
+      });
+    }, 100);
+  }, [uniqueTrends.length]);
+
+  function handleCarouselScroll() {
+    const container = carouselRef.current;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const containerCenter = containerRect.left + containerRect.width / 2;
+
+    let closestIndex = 0;
+    let closestDistance = Infinity;
+
+    cardRefs.current.forEach((card, index) => {
+      if (!card) return;
+
+      const cardRect = card.getBoundingClientRect();
+      const cardCenter = cardRect.left + cardRect.width / 2;
+      const distance = Math.abs(containerCenter - cardCenter);
+
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    setActiveIndex(closestIndex);
+  }
+
+  function scrollToCard(index: number) {
+    cardRefs.current[index]?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }
 
   return (
     <main className="min-h-screen bg-black px-3 py-3 text-white">
@@ -329,21 +383,28 @@ export default function HomeClient({
         </div>
       )}
 
-      <div className="flex gap-4 overflow-x-auto pb-3">
+      <div
+        ref={carouselRef}
+        onScroll={handleCarouselScroll}
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3"
+      >
         {uniqueTrends.length === 0 && (
           <div className="flex min-h-[420px] w-full items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950 text-sm text-zinc-500">
             No videos found yet.
           </div>
         )}
 
-        {uniqueTrends.map((trend) => {
+        {uniqueTrends.map((trend, index) => {
           const embedUrl = getTikTokEmbedUrl(trend.tiktok_url);
           const hashtagNames = extractHashtagNames(trend.hashtags);
 
           return (
             <article
               key={trend.id || trend.apify_id}
-              className="relative flex min-w-[280px] max-w-[280px] flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950"
+              ref={(element) => {
+                cardRefs.current[index] = element;
+              }}
+              className="relative flex min-w-[82vw] max-w-[82vw] snap-center flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 sm:min-w-[280px] sm:max-w-[280px]"
             >
               {trend.position <= 3 && (
                 <RevealTopCover rank={trend.position} />
@@ -429,6 +490,22 @@ export default function HomeClient({
           );
         })}
       </div>
+
+      {uniqueTrends.length > 0 && (
+        <div className="mt-1 flex justify-center gap-1.5 sm:hidden">
+          {uniqueTrends.slice(0, 10).map((trend, index) => (
+            <button
+              key={trend.id || trend.apify_id}
+              type="button"
+              onClick={() => scrollToCard(index)}
+              aria-label={`Go to Top ${index + 1}`}
+              className={`h-1.5 rounded-full transition-all ${
+                activeIndex === index ? "w-5 bg-white" : "w-1.5 bg-white/35"
+              }`}
+            />
+          ))}
+        </div>
+      )}
     </main>
   );
 }
