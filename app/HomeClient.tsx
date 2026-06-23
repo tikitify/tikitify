@@ -52,7 +52,28 @@ function RevealTopCover({ rank }: { rank: number }) {
   const color =
     rank === 1 ? "#C9A227" : rank === 2 ? "#C0C0C0" : "#B87333";
 
+  const storageKey = `tikitify_reveal_top_${rank}`;
+  const revealDuration = 30 * 60 * 1000;
+
+  useEffect(() => {
+    const savedUntil = localStorage.getItem(storageKey);
+
+    if (!savedUntil) return;
+
+    const savedUntilNumber = Number(savedUntil);
+
+    if (Date.now() < savedUntilNumber) {
+      setRevealed(true);
+    } else {
+      localStorage.removeItem(storageKey);
+    }
+  }, [storageKey]);
+
   function handleClick() {
+    const revealUntil = Date.now() + revealDuration;
+
+    localStorage.setItem(storageKey, String(revealUntil));
+
     setDissolving(true);
 
     setTimeout(() => {
